@@ -46,7 +46,17 @@ export function formatDurationShort(seconds: number): string {
 }
 
 export function formatVisits(count: number): string {
-  return `${formatNumber(count)} ${plural(count, 'візит', 'візити', 'візитів')}`
+  return `${formatNumber(count)} ${visitsWord(count)}`
+}
+
+/** Just the noun, for when the number itself is rendered separately (an
+ * animated counter can't be baked into a formatted string). */
+export function visitsWord(count: number): string {
+  return plural(count, 'візит', 'візити', 'візитів')
+}
+
+export function placesWord(count: number): string {
+  return plural(count, 'місце', 'місця', 'місць')
 }
 
 export function formatDaysSpan(days: number): string {

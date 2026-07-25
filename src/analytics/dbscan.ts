@@ -40,12 +40,13 @@ export interface DbscanOptions {
   minPts: number
 }
 
-// `weights` lets each input "point" stand in for more than one real ping —
-// used when the caller has pre-aggregated near-duplicate points (see
-// dedupeForClustering.ts) so the minPts density check still reflects the
-// TRUE number of pings nearby, not just the number of distinct aggregated
-// cells. Pass null to treat every point as weight 1 (the plain, textbook
-// DBSCAN behavior).
+// `weights` lets each input "point" stand in for more than one real
+// observation, so the minPts density check reflects the true count rather
+// than the number of aggregated entries. The current caller clusters stay
+// points, where one entry genuinely means one visit, and so passes null —
+// the plain, textbook DBSCAN behavior. The parameter is kept because
+// weighting is intrinsic to how minPts is defined, not a caller-specific
+// workaround.
 export function dbscan(
   lat: Float64Array,
   lng: Float64Array,

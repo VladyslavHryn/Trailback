@@ -30,13 +30,17 @@ const METERS_PER_DEGREE_LAT = 111_320
 
 export class SpatialGrid {
   private metersPerDegreeLng: number
+  private cellSizeMeters: number
   private cells = new Map<string, number[]>()
 
-  constructor(
-    private lat: Float64Array,
-    private lng: Float64Array,
-    private cellSizeMeters: number,
-  ) {
+  // Written out as explicit fields rather than TypeScript parameter
+  // properties: those are a type-system feature that emits real code, which
+  // the project's `erasableSyntaxOnly` setting disallows. Only the cell size
+  // needs to survive the constructor — the coordinates are read once here to
+  // build the buckets and never again.
+  constructor(lat: Float64Array, lng: Float64Array, cellSizeMeters: number) {
+    this.cellSizeMeters = cellSizeMeters
+
     let latSum = 0
     for (let i = 0; i < lat.length; i++) latSum += lat[i]
     const refLat = lat.length > 0 ? latSum / lat.length : 0

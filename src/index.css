@@ -95,6 +95,25 @@ body {
   border-top-color: var(--color-ink-700) !important;
 }
 
+/* Confines a child to a 1px ring at the element's edge — the "border
+   gradient" trick, used by BorderBeam so a spinning conic gradient shows up
+   only as a light travelling along the outline.
+   Written here rather than as inline styles because the two mask
+   declarations must be applied in this exact order: Chrome aliases
+   `-webkit-mask-composite` onto `mask-composite`, so setting the legacy
+   property last silently overwrites the standard value. CSS source order
+   makes that explicit; a React style object's key order does not. */
+.trail-beam-mask {
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
 /* Glowing pulse marker (divIcon), used instead of Leaflet's flat default pin. */
 .trail-marker-pulse {
   position: relative;

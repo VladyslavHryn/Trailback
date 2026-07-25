@@ -350,7 +350,6 @@ function HeroDemo() {
       boxZoom: false,
       keyboard: false,
       touchZoom: false,
-      tap: false,
     })
 
     L.tileLayer(TILE_URL, {

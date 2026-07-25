@@ -1,4 +1,6 @@
 import { motion, useReducedMotion } from 'framer-motion'
+import { NumberTicker } from '../ui/NumberTicker'
+import { cn } from '../../lib/cn'
 
 // Story-scale chart primitives — deliberately larger and plainer than a
 // dashboard widget: one series, thin marks, recessive axes, and the value
@@ -18,6 +20,11 @@ type ColumnChartProps = {
  * Vertical columns that grow into place as the chart scrolls into view.
  * Bars are anchored to the baseline and rounded only at the data end, so
  * the rounding reads as the value's cap rather than as a floating pill.
+ *
+ * Hovering a column lifts it out of the series. That's a readability
+ * affordance rather than decoration: with 24 thin bars sharing a baseline,
+ * picking out which one the eye is on is genuinely hard, and the highlight
+ * answers it without needing a tooltip layer.
  */
 export function ColumnChart({
   values,
@@ -31,21 +38,29 @@ export function ColumnChart({
 
   return (
     <div role="img" aria-label={ariaLabel}>
-      <div className="flex h-48 items-end gap-[3px] md:h-64 md:gap-1.5">
+      <div className="group/chart flex h-48 items-end gap-[3px] md:h-64 md:gap-1.5">
         {values.map((value, i) => {
           const heightPct = (value / max) * 100
           const isPeak = i === highlightIndex
           return (
             <div key={i} className="flex h-full flex-1 items-end">
               <motion.div
-                className="w-full rounded-t-[4px]"
+                className={cn(
+                  'w-full rounded-t-[4px] origin-bottom',
+                  // Dim the rest of the series while any bar is hovered, so
+                  // the hovered one reads as selected rather than just
+                  // slightly brighter than its neighbours.
+                  'transition-[filter,background-color] duration-300',
+                  'group-hover/chart:brightness-[0.65] hover:!brightness-125',
+                )}
                 style={{
                   background: isPeak ? 'var(--color-trail-400)' : 'var(--color-ink-700)',
-                  boxShadow: isPeak ? '0 0 24px rgba(245, 158, 11, 0.45)' : undefined,
+                  boxShadow: isPeak ? '0 0 28px rgba(245, 158, 11, 0.55)' : undefined,
                 }}
                 initial={prefersReducedMotion ? false : { height: 0 }}
                 whileInView={{ height: `${Math.max(heightPct, 1.5)}%` }}
                 viewport={{ once: true, amount: 0.4 }}
+                whileHover={prefersReducedMotion ? undefined : { scaleY: 1.04 }}
                 transition={{
                   duration: 0.8,
                   delay: prefersReducedMotion ? 0 : i * 0.015,
@@ -61,9 +76,10 @@ export function ColumnChart({
         {labels.map((label, i) => (
           <div key={i} className="flex-1 text-center">
             <span
-              className={`font-mono text-[10px] md:text-xs ${
-                i === highlightIndex ? 'text-trail-300' : 'text-ink-400'
-              }`}
+              className={cn(
+                'font-mono text-[10px] md:text-xs',
+                i === highlightIndex ? 'text-trail-300' : 'text-ink-400',
+              )}
             >
               {i % labelStep === 0 || i === highlightIndex ? label : ''}
             </span>
@@ -102,40 +118,49 @@ export function BreakdownBars({ rows, showPercent = false }: BreakdownBarsProps)
 
   return (
     <ul className="flex flex-col gap-6">
-      {rows.map((row, i) => (
-        <li key={row.key}>
-          <div className="flex items-baseline justify-between gap-4">
-            <span className="font-display text-lg font-medium text-ink-50 md:text-2xl">
-              {row.label}
-            </span>
-            <span className="shrink-0 text-right">
-              {showPercent && (
-                <span className="font-display text-xl font-semibold text-trail-300 md:text-3xl">
-                  {Math.round(row.ratio * 100)}%
+      {rows.map((row, i) => {
+        const color = row.color ?? 'var(--color-trail-500)'
+        return (
+          <li key={row.key} className="group">
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="font-display text-lg font-medium text-ink-50 transition-colors duration-300 group-hover:text-trail-300 md:text-2xl">
+                {row.label}
+              </span>
+              <span className="shrink-0 text-right">
+                {showPercent && (
+                  <span className="font-display text-xl font-semibold text-trail-300 md:text-3xl">
+                    <NumberTicker
+                      value={row.ratio * 100}
+                      suffix="%"
+                      delay={i * 0.07}
+                    />
+                  </span>
+                )}
+                <span className="ml-3 font-mono text-xs text-ink-400 md:text-sm">
+                  {row.value}
                 </span>
-              )}
-              <span className="ml-3 font-mono text-xs text-ink-400 md:text-sm">{row.value}</span>
-            </span>
-          </div>
+              </span>
+            </div>
 
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-ink-800">
-            <motion.div
-              className="h-full rounded-full"
-              style={{ background: row.color ?? 'var(--color-trail-500)' }}
-              initial={prefersReducedMotion ? false : { width: 0 }}
-              whileInView={{ width: `${Math.max(row.ratio * 100, 1)}%` }}
-              viewport={{ once: true, amount: 0.5 }}
-              transition={{
-                duration: 0.9,
-                delay: prefersReducedMotion ? 0 : i * 0.08,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-            />
-          </div>
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-ink-800">
+              <motion.div
+                className="h-full rounded-full transition-[box-shadow] duration-300"
+                style={{ background: color }}
+                initial={prefersReducedMotion ? false : { width: 0 }}
+                whileInView={{ width: `${Math.max(row.ratio * 100, 1)}%` }}
+                viewport={{ once: true, amount: 0.5 }}
+                transition={{
+                  duration: 0.9,
+                  delay: prefersReducedMotion ? 0 : i * 0.08,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+              />
+            </div>
 
-          {row.meta && <p className="mt-2 text-xs text-ink-400">{row.meta}</p>}
-        </li>
-      ))}
+            {row.meta && <p className="mt-2 text-xs text-ink-400">{row.meta}</p>}
+          </li>
+        )
+      })}
     </ul>
   )
 }

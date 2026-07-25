@@ -1,68 +1,49 @@
-// Turns DBSCAN's raw cluster labels into ranked "places" — the actual "top
-// places of your life" list. Spatial clustering alone only tells you WHERE
-// pings piled up; it says nothing about visit count or time spent, because
-// a single cluster covers every ping ever recorded there, from a hundred
-// separate visits spread across years. Splitting those visits back apart
-// needs a second pass over time.
+// Turns clustered stay points into ranked "places" — the actual "top places
+// of your life" list.
+//
+// The split of responsibilities across the three files involved is worth
+// keeping straight, because it's what makes each one explainable on its own:
+//
+//   stayPoints.ts  WHEN you were parked somewhere, and for how long.
+//                  Works purely on the time axis. Produces disjoint
+//                  episodes with measured start/end times.
+//   dbscan.ts      WHICH stays happened at the same location. Works purely
+//                  on the space axis, and never sees a timestamp.
+//   places.ts      (this file) folds those two together: every stay sharing
+//                  a cluster label is the same place, so its visit count is
+//                  how many stays landed there and its total time is the
+//                  sum of those stays' durations.
+//
+// The important consequence of doing it in that order: because stays are cut
+// from non-overlapping runs of the timeline, summing their durations cannot
+// double count. No place can claim a minute another place also claims, and
+// the total across all places is bounded by the real length of the history
+// — a guarantee that comes from the data structure rather than from a check.
 
-import type { ParsedPoints } from '../parsing/types'
 import { NOISE } from './dbscan'
+import type { Stay } from './stayPoints'
 
 export interface Place {
   clusterId: number
   lat: number
   lng: number
+  /** Raw pings recorded across all visits here — a rough density measure. */
   pointCount: number
+  /** Number of separate stays: one arrival, one visit. */
   visitCount: number
   totalDurationSec: number
   firstSeenSec: number
   lastSeenSec: number
   /** Google's own label for this place ("Home", "Work", ...), if any of its
-   * pings carried one — the most frequent non-null label among them. Free,
+   * stays carried one — the most frequent non-null label among them. Free,
    * instant, and needs no reverse-geocoding lookup. */
   semanticLabel: string | null
 }
 
-// A gap this long between two consecutive pings at the same place means you
-// left and came back — a new visit rather than a continuation of the last.
-const VISIT_GAP_SEC = 30 * 60
-
-// HOW TIME-AT-PLACE IS COUNTED, and why it's done this way.
-//
-// The obvious implementation — group each cluster's pings, find its first
-// and last ping per session, sum (last - first) — is wrong in three ways
-// that all inflate the totals, badly enough to produce impossible numbers
-// (a single place totalling more days than a person actually had):
-//
-//  1. DOUBLE COUNTING. A per-cluster session only looks at that cluster's
-//     own pings and is blind to everything in between. Pings at
-//     home 10:00 → elsewhere 10:05 → home 10:10 make home's session span
-//     the full 10:00-10:10 while the other place ALSO counts its own time.
-//     The same wall-clock minute gets credited to two places at once, so
-//     the totals had no upper bound at all.
-//  2. GAPS COUNTED AS PRESENCE. `last - first` silently includes every
-//     internal gap. Since each gap was only compared against its immediate
-//     predecessor, a chain of just-under-threshold gaps stitched into one
-//     enormous "continuous" stay that nobody actually sat through.
-//  3. A PER-VISIT FLOOR added on top of all that — harmless once, but
-//     hundreds of visits × a 5-minute floor is tens of extra hours.
-//
-// Instead, time is attributed INTERVAL BY INTERVAL over the globally
-// time-sorted points: the gap between two consecutive pings is credited to
-// a place only when BOTH ends of that gap are at that same place. Since
-// consecutive intervals are disjoint and each is credited to at most one
-// place, this gives a guarantee the old approach couldn't: the sum of every
-// place's time can never exceed the real span of the history.
-//
-// Gaps longer than this cap are only credited up to the cap — beyond a few
-// hours, two pings at the same place is no longer evidence of continuous
-// presence (a phone can be off, or asleep, for days between them), so the
-// honest move is to stop crediting rather than assume presence.
-const MAX_ATTRIBUTED_GAP_SEC = 3 * 3600
-
 interface PlaceAccumulator {
-  latSum: number
-  lngSum: number
+  latWeightedSum: number
+  lngWeightedSum: number
+  weightSum: number
   pointCount: number
   visitCount: number
   totalDurationSec: number
@@ -71,64 +52,58 @@ interface PlaceAccumulator {
   labelCounts: Map<string, number>
 }
 
-/** Precondition: `points` is sorted by timestampSec ascending. */
-export function buildPlaces(points: ParsedPoints, labels: Int32Array): Place[] {
-  const n = points.lat.length
+/**
+ * @param stays   stay points, in the order they were detected (chronological)
+ * @param labels  cluster id per stay, from `dbscan` over the stay centroids
+ */
+export function buildPlaces(stays: Stay[], labels: Int32Array): Place[] {
   const accumulators = new Map<number, PlaceAccumulator>()
 
-  const accumulatorFor = (clusterId: number): PlaceAccumulator => {
+  for (let s = 0; s < stays.length; s++) {
+    const clusterId = labels[s]
+    // A stay that never clustered is somewhere you went once or twice. Real,
+    // but not a recurring place, so it doesn't belong in this ranking.
+    if (clusterId === NOISE) continue
+
+    const stay = stays[s]
+    const durationSec = stay.endSec - stay.startSec
+
     let acc = accumulators.get(clusterId)
     if (!acc) {
       acc = {
-        latSum: 0,
-        lngSum: 0,
+        latWeightedSum: 0,
+        lngWeightedSum: 0,
+        weightSum: 0,
         pointCount: 0,
         visitCount: 0,
         totalDurationSec: 0,
-        firstSeenSec: points.timestampSec[0],
-        lastSeenSec: points.timestampSec[0],
+        firstSeenSec: stay.startSec,
+        lastSeenSec: stay.endSec,
         labelCounts: new Map(),
       }
       accumulators.set(clusterId, acc)
     }
-    return acc
-  }
 
-  // Pass 1: per-point aggregates (centroid, extent, Google's own labels).
-  for (let i = 0; i < n; i++) {
-    const clusterId = labels[i]
-    if (clusterId === NOISE) continue
+    // Centroid weighted by how many pings each stay contributed, so a long
+    // overnight stay pins the location more firmly than a ten-minute one —
+    // otherwise a couple of scattered brief visits at the edge of the
+    // cluster would drag the marker off the building you actually live in.
+    acc.latWeightedSum += stay.lat * stay.pointCount
+    acc.lngWeightedSum += stay.lng * stay.pointCount
+    acc.weightSum += stay.pointCount
 
-    const acc = accumulatorFor(clusterId)
-    if (acc.pointCount === 0) acc.firstSeenSec = points.timestampSec[i]
-    acc.latSum += points.lat[i]
-    acc.lngSum += points.lng[i]
-    acc.pointCount++
-    acc.lastSeenSec = points.timestampSec[i]
+    acc.pointCount += stay.pointCount
+    acc.visitCount += 1
+    acc.totalDurationSec += durationSec
+    if (stay.startSec < acc.firstSeenSec) acc.firstSeenSec = stay.startSec
+    if (stay.endSec > acc.lastSeenSec) acc.lastSeenSec = stay.endSec
 
-    const label = points.semanticLabels[i]
-    if (label) acc.labelCounts.set(label, (acc.labelCounts.get(label) ?? 0) + 1)
-  }
-
-  // Pass 2: attribute each inter-ping interval to at most one place, and
-  // count visits from the same walk so both stay consistent with each other.
-  for (let i = 0; i < n; i++) {
-    const clusterId = labels[i]
-    if (clusterId === NOISE) continue
-
-    const acc = accumulatorFor(clusterId)
-    const prevLabel = i > 0 ? labels[i - 1] : NOISE
-    const gapSec = i > 0 ? points.timestampSec[i] - points.timestampSec[i - 1] : 0
-
-    // A visit begins whenever we arrive here from somewhere else, or return
-    // after a long enough gap to count as having left.
-    const isContinuation = prevLabel === clusterId && gapSec > 0 && gapSec <= VISIT_GAP_SEC
-    if (!isContinuation) {
-      acc.visitCount++
-      continue
+    if (stay.semanticLabel) {
+      acc.labelCounts.set(
+        stay.semanticLabel,
+        (acc.labelCounts.get(stay.semanticLabel) ?? 0) + 1,
+      )
     }
-
-    acc.totalDurationSec += Math.min(gapSec, MAX_ATTRIBUTED_GAP_SEC)
   }
 
   const places: Place[] = []
@@ -144,8 +119,8 @@ export function buildPlaces(points: ParsedPoints, labels: Int32Array): Place[] {
 
     places.push({
       clusterId,
-      lat: acc.latSum / acc.pointCount,
-      lng: acc.lngSum / acc.pointCount,
+      lat: acc.latWeightedSum / acc.weightSum,
+      lng: acc.lngWeightedSum / acc.weightSum,
       pointCount: acc.pointCount,
       visitCount: acc.visitCount,
       totalDurationSec: acc.totalDurationSec,

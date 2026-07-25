@@ -1,7 +1,9 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { Reveal } from './Reveal'
-import { formatDaysSpan, formatNumber } from './format'
+import { formatDaysSpan, formatNumber, placesWord } from './format'
+import { NumberTicker } from '../ui/NumberTicker'
+import { Particles } from '../ui/Particles'
 
 type HeroSectionProps = {
   pointCount: number
@@ -27,6 +29,11 @@ export function HeroSection({ pointCount, spanDays, placeCount }: HeroSectionPro
         }}
       />
 
+      {/* The drifting field stands in for the pings themselves — the one
+          decorative element on this screen, and the only place in the story
+          that gets ambient motion. */}
+      <Particles density={80} />
+
       <div className="relative z-10 flex flex-col items-center">
         <Reveal>
           <p className="font-mono text-xs uppercase tracking-[0.25em] text-signal-400">
@@ -36,7 +43,7 @@ export function HeroSection({ pointCount, spanDays, placeCount }: HeroSectionPro
 
         <Reveal index={1}>
           <p className="mt-10 font-display text-[clamp(3.5rem,16vw,11rem)] font-bold leading-[0.85] tracking-tighter text-trail-400">
-            {formatNumber(pointCount)}
+            <NumberTicker value={pointCount} delay={0.35} />
           </p>
         </Reveal>
 
@@ -49,8 +56,8 @@ export function HeroSection({ pointCount, spanDays, placeCount }: HeroSectionPro
         <Reveal index={3}>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-400 md:text-lg">
             Google показував тобі лише один день за раз. Ось уся твоя історія
-            разом — {formatNumber(placeCount)} місць, звички та маршрути, які
-            склались непомітно для тебе самого.
+            разом — {formatNumber(placeCount)} {placesWord(placeCount)}, звички
+            та маршрути, які склались непомітно для тебе самого.
           </p>
         </Reveal>
       </div>

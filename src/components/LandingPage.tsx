@@ -200,7 +200,7 @@ export function LandingPage({
           <div className="mt-4 flex flex-col items-center gap-2 text-xs text-ink-400 sm:flex-row sm:justify-center sm:gap-4">
             <span className="inline-flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5 text-signal-400" />
-              Обробка локальна — файл не залишає цей пристрій
+              Файл обробляється локально в браузері
             </span>
             <button
               type="button"

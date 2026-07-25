@@ -17,6 +17,10 @@ export interface Place {
   totalDurationSec: number
   firstSeenSec: number
   lastSeenSec: number
+  /** Google's own label for this place ("Home", "Work", ...), if any of its
+   * pings carried one — the most frequent non-null label among them. Free,
+   * instant, and needs no reverse-geocoding lookup. */
+  semanticLabel: string | null
 }
 
 // Same idea as JOURNEY_GAP_SEC in distanceStats.ts, applied per-place
@@ -58,12 +62,16 @@ export function buildPlaces(points: ParsedPoints, labels: Int32Array): Place[] {
 
     let sessionStart = points.timestampSec[indices[0]]
     let sessionEnd = sessionStart
+    const labelCounts = new Map<string, number>()
 
     for (let k = 0; k < indices.length; k++) {
       const idx = indices[k]
       latSum += points.lat[idx]
       lngSum += points.lng[idx]
       const t = points.timestampSec[idx]
+
+      const label = points.semanticLabels[idx]
+      if (label) labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1)
 
       if (k > 0 && t - sessionEnd > VISIT_GAP_SEC) {
         visitCount++
@@ -76,6 +84,15 @@ export function buildPlaces(points: ParsedPoints, labels: Int32Array): Place[] {
     visitCount++
     totalDurationSec += Math.max(sessionEnd - sessionStart, MIN_VISIT_SEC)
 
+    let semanticLabel: string | null = null
+    let bestCount = 0
+    for (const [label, count] of labelCounts) {
+      if (count > bestCount) {
+        semanticLabel = label
+        bestCount = count
+      }
+    }
+
     places.push({
       clusterId,
       lat: latSum / indices.length,
@@ -85,6 +102,7 @@ export function buildPlaces(points: ParsedPoints, labels: Int32Array): Place[] {
       totalDurationSec,
       firstSeenSec: points.timestampSec[indices[0]],
       lastSeenSec: points.timestampSec[indices[indices.length - 1]],
+      semanticLabel,
     })
   }
 

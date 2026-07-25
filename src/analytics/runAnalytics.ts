@@ -55,6 +55,10 @@ export function runAnalytics(rawPoints: ParsedPoints): AnalyticsResult {
     lat: Float64Array.from(stationaryIndices, (i) => points.lat[i]),
     lng: Float64Array.from(stationaryIndices, (i) => points.lng[i]),
     timestampSec: Uint32Array.from(stationaryIndices, (i) => points.timestampSec[i]),
+    // Not read by anything downstream of this subset (clustering only cares
+    // about lat/lng/weight), but kept aligned anyway rather than leaving a
+    // stale full-length array sitting under a filtered one.
+    semanticLabels: stationaryIndices.map((i) => points.semanticLabels[i]),
   }
 
   const cells = dedupeForClustering(stationaryPoints)

@@ -12,6 +12,12 @@ export interface ParsedPoints {
   lat: Float64Array
   lng: Float64Array
   timestampSec: Uint32Array
+  /** Google's own place label for this ping (e.g. "Home", "Work"), when the
+   * semantic-segments export provided one — null for the vast majority of
+   * points (raw pings never carry one; most visits don't either). Kept as
+   * a plain array (not a typed array) since it's mostly-null strings, not
+   * a dense numeric column. */
+  semanticLabels: (string | null)[]
   /** Which Google export shape was detected — shown to the user for context. */
   format: string
   /** Total array elements the parser walked through (valid + invalid). */

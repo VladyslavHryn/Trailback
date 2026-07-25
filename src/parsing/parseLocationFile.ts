@@ -19,6 +19,7 @@ export async function parseLocationFile(
   const lats: number[] = []
   const lngs: number[] = []
   const timesSec: number[] = []
+  const semanticLabels: (string | null)[] = []
 
   let recordsSeen = 0
   let recordsSkipped = 0
@@ -49,6 +50,7 @@ export async function parseLocationFile(
       lats.push(point.lat)
       lngs.push(point.lng)
       timesSec.push(point.timestampSec)
+      semanticLabels.push(point.semanticLabel ?? null)
     }
   })
 
@@ -114,6 +116,7 @@ export async function parseLocationFile(
     // memory of a timestamp column compared to storing milliseconds as
     // float64, which adds up across millions of points.
     timestampSec: Uint32Array.from(timesSec),
+    semanticLabels,
     format: extractor.matchedKey,
     recordsSeen,
     recordsSkipped,

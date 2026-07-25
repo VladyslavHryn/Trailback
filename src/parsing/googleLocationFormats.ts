@@ -22,6 +22,20 @@ export interface NormalizedPoint {
   lat: number
   lng: number
   timestampSec: number
+  /** Google's own place label ("Home", "Work", ...) when the source record
+   * provided one — only ever set for `visit` records in the semantic-
+   * segments format; raw pings and activity/timelinePath points never have
+   * one. */
+  semanticLabel?: string
+}
+
+// Google marks a visit's confidence as "Unknown" when it couldn't infer
+// anything — not a real label, so it's treated as no label at all rather
+// than displayed to the user.
+function normalizeSemanticType(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  if (value === '' || value === 'Unknown') return undefined
+  return value
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -84,7 +98,8 @@ function normalizeSemanticSegment(raw: Record<string, unknown>): NormalizedPoint
   const visitCoords = parseLatLngString(placeLocation?.latLng ?? placeLocation)
   const visitTime = toSeconds(raw.startTime)
   if (visitCoords && visitTime !== null) {
-    points.push({ ...visitCoords, timestampSec: visitTime })
+    const semanticLabel = normalizeSemanticType(visit?.topCandidate?.semanticType)
+    points.push({ ...visitCoords, timestampSec: visitTime, semanticLabel })
   }
 
   const activity = raw.activity as Record<string, any> | undefined

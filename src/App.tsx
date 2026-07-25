@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Route } from 'lucide-react'
 import { LandingPage } from './components/LandingPage'
 import { MapView } from './components/MapView'
@@ -6,10 +6,13 @@ import { ParsingScreen } from './components/ParsingScreen'
 import { InsightsDashboard } from './components/InsightsDashboard'
 import { useLocationParser } from './hooks/useLocationParser'
 import { useAnalytics } from './hooks/useAnalytics'
+import { useGeocoding } from './hooks/useGeocoding'
+import { buildDisplayPlaces } from './analytics/placeInsights'
 
 function App() {
   const { state, parseFile, reset } = useLocationParser()
   const analytics = useAnalytics()
+  const geocoding = useGeocoding()
   const [showDemoMap, setShowDemoMap] = useState(false)
 
   const showMap = state.status === 'done' || showDemoMap
@@ -26,10 +29,29 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state])
 
+  // Reverse-geocoding needs the place list from analytics, so it starts
+  // once clustering has actually finished — on the main thread (see
+  // useGeocoding.ts), not blocking anything else, since it's rate-limited
+  // network I/O rather than compute.
+  useEffect(() => {
+    if (analytics.state.status === 'done') {
+      geocoding.run(analytics.state.result.places)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analytics.state])
+
+  const geocodedResults = geocoding.state.status === 'done' ? geocoding.state.results : undefined
+
+  const displayPlaces = useMemo(() => {
+    if (analytics.state.status !== 'done') return undefined
+    return buildDisplayPlaces(analytics.state.result.places, geocodedResults ?? new Map())
+  }, [analytics.state, geocodedResults])
+
   const handleBack = () => {
     setShowDemoMap(false)
     reset()
     analytics.reset()
+    geocoding.reset()
   }
 
   if (state.status === 'parsing') {
@@ -38,7 +60,6 @@ function App() {
 
   if (showMap) {
     const points = state.status === 'done' ? state.points : undefined
-    const places = analytics.state.status === 'done' ? analytics.state.result.places : undefined
 
     return (
       <div className="flex h-svh flex-col bg-ink-950">
@@ -66,11 +87,15 @@ function App() {
         </header>
         <main className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
           <div className="relative min-h-[45vh] flex-1">
-            <MapView points={points} places={places} />
+            <MapView points={points} places={displayPlaces} />
           </div>
           {points && (
             <aside className="w-full shrink-0 overflow-y-auto border-t border-ink-800 bg-ink-900/60 md:w-[380px] md:border-l md:border-t-0">
-              <InsightsDashboard state={analytics.state} />
+              <InsightsDashboard
+                analytics={analytics.state}
+                geocoding={geocoding.state}
+                displayPlaces={displayPlaces}
+              />
             </aside>
           )}
         </main>

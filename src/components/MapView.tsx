@@ -3,15 +3,19 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import '../map/registerLeafletHeat'
 import type { ParsedPoints } from '../parsing/types'
-import type { Place } from '../analytics/places'
+import type { DisplayPlace } from '../analytics/placeInsights'
+import { assignDistrictColors } from '../analytics/placeInsights'
 import { aggregateHeatmapPoints } from '../map/aggregateHeatmapPoints'
 
 const MAX_PLACE_MARKERS = 8
+// Plain hex (not the CSS var) because it gets an alpha suffix appended
+// below for the marker glow — var(--x)80 isn't valid CSS.
+const DEFAULT_PLACE_COLOR = '#5ecdbd'
 
-function createPlaceIcon(rank: number) {
+function createPlaceIcon(rank: number, color: string) {
   return L.divIcon({
     className: '',
-    html: `<div class="trail-place-marker">${rank}</div>`,
+    html: `<div class="trail-place-marker" style="border-color:${color};color:${color};box-shadow:0 0 10px ${color}80">${rank}</div>`,
     iconSize: [24, 24],
     iconAnchor: [12, 12],
   })
@@ -55,7 +59,7 @@ export function createPulseIcon() {
 
 type MapViewProps = {
   points?: ParsedPoints
-  places?: Place[]
+  places?: DisplayPlace[]
 }
 
 export function MapView({ points, places }: MapViewProps) {
@@ -137,26 +141,42 @@ export function MapView({ points, places }: MapViewProps) {
       // aggregateHeatmapPoints for why raw pings are grid-aggregated first
       // rather than fed to the heat layer directly or just downsampled.
       const { points: heatPoints, maxIntensity } = aggregateHeatmapPoints(points)
-      L.heatLayer(heatPoints, {
-        radius: 16,
-        blur: 20,
-        max: maxIntensity,
-        minOpacity: 0.25,
-        // Heat intensity is a MAGNITUDE (how often you were here), so this
-        // is a sequential scale — one hue, light→dark — not a blend of two
-        // hues. Crossing from teal to orange mid-ramp looked like a muddy
-        // brown stain where they met (RGB-interpolating between
-        // near-complementary hues desaturates instead of blending cleanly).
-        // Staying inside one hue (brand orange) and only ramping
-        // opacity/lightness avoids that entirely.
-        gradient: {
-          0.15: 'rgba(232, 133, 58, 0)',
-          0.4: 'rgba(232, 133, 58, 0.45)',
-          0.65: '#e8853a',
-          0.85: '#f2a35e',
-          1.0: '#f7c088',
-        },
-      }).addTo(layerGroup)
+
+      // Belt-and-suspenders on top of the invalidateSize()/ResizeObserver in
+      // the mount effect: if the container still measures 0x0 right at this
+      // exact instant (seen in the split-view layout — the map's flex
+      // sibling can shift its width after this effect already fired),
+      // leaflet.heat's canvas throws IndexSizeError instead of just
+      // rendering nothing. Retrying a beat later rather than crashing the
+      // whole map view is worth a little duplication here.
+      const addHeatLayerWhenSized = (attemptsLeft: number) => {
+        const size = map.getSize()
+        if ((size.x === 0 || size.y === 0) && attemptsLeft > 0) {
+          setTimeout(() => addHeatLayerWhenSized(attemptsLeft - 1), 100)
+          return
+        }
+        L.heatLayer(heatPoints, {
+          radius: 16,
+          blur: 20,
+          max: maxIntensity,
+          minOpacity: 0.25,
+          // Heat intensity is a MAGNITUDE (how often you were here), so this
+          // is a sequential scale — one hue, light→dark — not a blend of two
+          // hues. Crossing from teal to orange mid-ramp looked like a muddy
+          // brown stain where they met (RGB-interpolating between
+          // near-complementary hues desaturates instead of blending cleanly).
+          // Staying inside one hue (brand orange) and only ramping
+          // opacity/lightness avoids that entirely.
+          gradient: {
+            0.15: 'rgba(232, 133, 58, 0)',
+            0.4: 'rgba(232, 133, 58, 0.45)',
+            0.65: '#e8853a',
+            0.85: '#f2a35e',
+            1.0: '#f7c088',
+          },
+        }).addTo(layerGroup)
+      }
+      addHeatLayerWhenSized(20)
     } else {
       const latLngs = DEMO_POINTS.map((p) => [p.lat, p.lng] as [number, number])
       map.fitBounds(L.latLngBounds(latLngs), { padding: [64, 64] })
@@ -202,11 +222,20 @@ export function MapView({ points, places }: MapViewProps) {
     const placesLayer = L.layerGroup().addTo(map)
     placesLayerRef.current = placesLayer
 
-    places.slice(0, MAX_PLACE_MARKERS).forEach((place, index) => {
-      L.marker([place.lat, place.lng], { icon: createPlaceIcon(index + 1) })
+    const shown = places.slice(0, MAX_PLACE_MARKERS)
+    // Markers colored by district (when known) so the map itself shows the
+    // district breakdown, not just the dashboard list — same color
+    // assignment logic as the dashboard's district cards.
+    const districtColors = assignDistrictColors(
+      shown.map((p) => p.district).filter((d): d is string => d != null),
+    )
+
+    shown.forEach((place, index) => {
+      const color = place.district ? (districtColors.get(place.district) ?? DEFAULT_PLACE_COLOR) : DEFAULT_PLACE_COLOR
+      L.marker([place.lat, place.lng], { icon: createPlaceIcon(index + 1, color) })
         .addTo(placesLayer)
         .bindTooltip(
-          `#${index + 1} · ${place.visitCount} візитів · ${formatVisitDuration(place.totalDurationSec)}`,
+          `#${index + 1} ${place.displayName} · ${place.visitCount} візитів · ${formatVisitDuration(place.totalDurationSec)}`,
           { direction: 'top', offset: [0, -12] },
         )
     })

@@ -123,6 +123,25 @@ body {
   filter: blur(6px);
 }
 
+/* Ranked "top place" marker — deliberately teal (signal color) rather than
+   the heatmap's orange, so a real clustering result reads as distinct from
+   the density blob it sits on top of. */
+.trail-place-marker {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--color-ink-900);
+  border: 2px solid var(--color-signal-400);
+  color: var(--color-signal-400);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(63, 184, 168, 0.5);
+}
+
 @keyframes trail-dash {
   to {
     stroke-dashoffset: -600;

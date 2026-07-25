@@ -3,7 +3,26 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import '../map/registerLeafletHeat'
 import type { ParsedPoints } from '../parsing/types'
+import type { Place } from '../analytics/places'
 import { aggregateHeatmapPoints } from '../map/aggregateHeatmapPoints'
+
+const MAX_PLACE_MARKERS = 8
+
+function createPlaceIcon(rank: number) {
+  return L.divIcon({
+    className: '',
+    html: `<div class="trail-place-marker">${rank}</div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+  })
+}
+
+function formatVisitDuration(seconds: number): string {
+  const hours = seconds / 3600
+  if (hours >= 24) return `${Math.round(hours / 24)} дн`
+  if (hours >= 1) return `${hours.toFixed(1)} год`
+  return `${Math.round(seconds / 60)} хв`
+}
 
 // Placeholder route shown until a real file is parsed (and reused by the
 // landing page's "Переглянути демо-карту" shortcut).
@@ -36,12 +55,14 @@ export function createPulseIcon() {
 
 type MapViewProps = {
   points?: ParsedPoints
+  places?: Place[]
 }
 
-export function MapView({ points }: MapViewProps) {
+export function MapView({ points, places }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerGroupRef = useRef<L.LayerGroup | null>(null)
+  const placesLayerRef = useRef<L.LayerGroup | null>(null)
 
   // Mount the map + base tiles once.
   useEffect(() => {
@@ -163,6 +184,33 @@ export function MapView({ points }: MapViewProps) {
       })
     }
   }, [points])
+
+  // Place markers live in their own layer/effect, separate from the
+  // heatmap — analytics finishes well after the heatmap is already showing
+  // (it's a heavier, worker-side computation), so this shouldn't force a
+  // re-draw of the heatmap layer when results arrive.
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    placesLayerRef.current?.remove()
+    if (!places || places.length === 0) {
+      placesLayerRef.current = null
+      return
+    }
+
+    const placesLayer = L.layerGroup().addTo(map)
+    placesLayerRef.current = placesLayer
+
+    places.slice(0, MAX_PLACE_MARKERS).forEach((place, index) => {
+      L.marker([place.lat, place.lng], { icon: createPlaceIcon(index + 1) })
+        .addTo(placesLayer)
+        .bindTooltip(
+          `#${index + 1} · ${place.visitCount} візитів · ${formatVisitDuration(place.totalDurationSec)}`,
+          { direction: 'top', offset: [0, -12] },
+        )
+    })
+  }, [places])
 
   return <div ref={containerRef} className="h-full w-full" />
 }

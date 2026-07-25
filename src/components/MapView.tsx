@@ -121,10 +121,18 @@ export function MapView({ points }: MapViewProps) {
         blur: 20,
         max: maxIntensity,
         minOpacity: 0.25,
+        // Heat intensity is a MAGNITUDE (how often you were here), so this
+        // is a sequential scale — one hue, light→dark — not a blend of two
+        // hues. Crossing from teal to orange mid-ramp looked like a muddy
+        // brown stain where they met (RGB-interpolating between
+        // near-complementary hues desaturates instead of blending cleanly).
+        // Staying inside one hue (brand orange) and only ramping
+        // opacity/lightness avoids that entirely.
         gradient: {
-          0.1: 'rgba(63, 184, 168, 0)',
-          0.35: 'rgba(63, 184, 168, 0.7)',
+          0.15: 'rgba(232, 133, 58, 0)',
+          0.4: 'rgba(232, 133, 58, 0.45)',
           0.65: '#e8853a',
+          0.85: '#f2a35e',
           1.0: '#f7c088',
         },
       }).addTo(layerGroup)

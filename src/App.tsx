@@ -3,7 +3,7 @@ import { Route } from 'lucide-react'
 import { LandingPage } from './components/LandingPage'
 import { MapView } from './components/MapView'
 import { ParsingScreen } from './components/ParsingScreen'
-import { AnalyticsPanel } from './components/AnalyticsPanel'
+import { InsightsDashboard } from './components/InsightsDashboard'
 import { useLocationParser } from './hooks/useLocationParser'
 import { useAnalytics } from './hooks/useAnalytics'
 
@@ -64,9 +64,15 @@ function App() {
             ← Завантажити інший файл
           </button>
         </header>
-        <main className="relative flex-1">
-          <MapView points={points} places={places} />
-          {points && <AnalyticsPanel state={analytics.state} />}
+        <main className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
+          <div className="relative min-h-[45vh] flex-1">
+            <MapView points={points} places={places} />
+          </div>
+          {points && (
+            <aside className="w-full shrink-0 overflow-y-auto border-t border-ink-800 bg-ink-900/60 md:w-[380px] md:border-l md:border-t-0">
+              <InsightsDashboard state={analytics.state} />
+            </aside>
+          )}
         </main>
       </div>
     )

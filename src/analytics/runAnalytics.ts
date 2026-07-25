@@ -10,11 +10,19 @@ import { selectStationaryPointIndices } from './stationaryFilter'
 import { dedupeForClustering } from './dedupeForClustering'
 import { dbscan, NOISE } from './dbscan'
 import { buildPlaces, type Place } from './places'
+import { computeFootprintByMonth, type MonthlyFootprint } from './footprintOverTime'
+import { classifyPlaceLifecycle, type PlaceLifecycle } from './placeLifecycle'
+import { computeCoverage, type CoverageStats } from './coverage'
+import { computeTimePatterns, type TimePatterns } from './timePatterns'
 
 export interface AnalyticsResult {
   distance: DistanceStats
   places: Place[]
   pointCount: number
+  footprintByMonth: MonthlyFootprint[]
+  placeLifecycle: PlaceLifecycle
+  coverage: CoverageStats
+  timePatterns: TimePatterns
 }
 
 // DBSCAN's two hyperparameters, tuned for "a place in someone's life"
@@ -69,5 +77,20 @@ export function runAnalytics(rawPoints: ParsedPoints): AnalyticsResult {
 
   const places = buildPlaces(points, pointLabels)
 
-  return { distance, places, pointCount: points.lat.length }
+  const footprintByMonth = computeFootprintByMonth(points)
+  const datasetStartSec = points.timestampSec[0]
+  const datasetEndSec = points.timestampSec[points.lat.length - 1]
+  const placeLifecycle = classifyPlaceLifecycle(places, datasetStartSec, datasetEndSec)
+  const coverage = computeCoverage(points)
+  const timePatterns = computeTimePatterns(points)
+
+  return {
+    distance,
+    places,
+    pointCount: points.lat.length,
+    footprintByMonth,
+    placeLifecycle,
+    coverage,
+    timePatterns,
+  }
 }

@@ -70,14 +70,14 @@ export function summarizeCategories(
 // critical chart, so exact colorblind-safety validation wasn't run on it
 // the way the Step 3 heatmap ramp was.
 const DISTRICT_COLOR_PALETTE = [
-  '#e8853a',
-  '#3fb8a8',
-  '#f2a35e',
-  '#5ecdbd',
+  '#f59e0b',
+  '#22d3ee',
+  '#fb7185',
   '#a78bfa',
-  '#f472b6',
-  '#facc15',
+  '#4ade80',
+  '#fcd34d',
   '#38bdf8',
+  '#f472b6',
 ]
 
 /** Assigns each distinct district name a stable color, in first-seen order. */

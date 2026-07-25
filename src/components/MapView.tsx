@@ -10,7 +10,7 @@ import { aggregateHeatmapPoints } from '../map/aggregateHeatmapPoints'
 const MAX_PLACE_MARKERS = 8
 // Plain hex (not the CSS var) because it gets an alpha suffix appended
 // below for the marker glow — var(--x)80 isn't valid CSS.
-const DEFAULT_PLACE_COLOR = '#5ecdbd'
+const DEFAULT_PLACE_COLOR = '#22d3ee'
 
 function createPlaceIcon(rank: number, color: string) {
   return L.divIcon({
@@ -60,9 +60,16 @@ export function createPulseIcon() {
 type MapViewProps = {
   points?: ParsedPoints
   places?: DisplayPlace[]
+  /**
+   * Off inside the scroll-story: a full-height map that captures the wheel
+   * would swallow the page scroll and trap the reader on that screen, with
+   * no way to continue. Zoom stays available via the +/- controls and
+   * double-click, so nothing is actually lost.
+   */
+  scrollWheelZoom?: boolean
 }
 
-export function MapView({ points, places }: MapViewProps) {
+export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerGroupRef = useRef<L.LayerGroup | null>(null)
@@ -72,7 +79,7 @@ export function MapView({ points, places }: MapViewProps) {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
-    const map = L.map(containerRef.current, { zoomControl: true })
+    const map = L.map(containerRef.current, { zoomControl: true, scrollWheelZoom })
 
     L.tileLayer(TILE_URL, {
       attribution: TILE_ATTRIBUTION,
@@ -97,6 +104,10 @@ export function MapView({ points, places }: MapViewProps) {
       map.remove()
       mapRef.current = null
     }
+    // Deliberately mount-once: `scrollWheelZoom` is read at construction and
+    // is fixed per usage site, and re-running this would tear down and
+    // rebuild the whole map (and its tiles) rather than toggle one option.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Draw either the real parsed points or the placeholder route, and refit
@@ -168,11 +179,11 @@ export function MapView({ points, places }: MapViewProps) {
           // Staying inside one hue (brand orange) and only ramping
           // opacity/lightness avoids that entirely.
           gradient: {
-            0.15: 'rgba(232, 133, 58, 0)',
-            0.4: 'rgba(232, 133, 58, 0.45)',
-            0.65: '#e8853a',
-            0.85: '#f2a35e',
-            1.0: '#f7c088',
+            0.15: 'rgba(245, 158, 11, 0)',
+            0.4: 'rgba(245, 158, 11, 0.45)',
+            0.65: '#f59e0b',
+            0.85: '#fbbf24',
+            1.0: '#fcd34d',
           },
         }).addTo(layerGroup)
       }
@@ -183,14 +194,14 @@ export function MapView({ points, places }: MapViewProps) {
 
       // Soft blurred glow line beneath the crisp dashed line, for depth.
       L.polyline(latLngs, {
-        color: '#e8853a',
+        color: '#f59e0b',
         weight: 10,
         opacity: 0.25,
         className: 'trail-route-glow',
       }).addTo(layerGroup)
 
       L.polyline(latLngs, {
-        color: '#f2a35e',
+        color: '#fbbf24',
         weight: 3,
         opacity: 0.9,
         lineCap: 'round',

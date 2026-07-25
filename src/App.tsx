@@ -3,7 +3,7 @@ import { Route } from 'lucide-react'
 import { LandingPage } from './components/LandingPage'
 import { MapView } from './components/MapView'
 import { ParsingScreen } from './components/ParsingScreen'
-import { InsightsDashboard } from './components/InsightsDashboard'
+import { ResultsStory } from './components/ResultsStory'
 import { useLocationParser } from './hooks/useLocationParser'
 import { useAnalytics } from './hooks/useAnalytics'
 import { useGeocoding } from './hooks/useGeocoding'
@@ -15,11 +15,9 @@ function App() {
   const geocoding = useGeocoding()
   const [showDemoMap, setShowDemoMap] = useState(false)
 
-  const showMap = state.status === 'done' || showDemoMap
-
   // Kick off the analytics engine as soon as real points are parsed — it
-  // runs in its own worker, so this doesn't block the heatmap from showing
-  // immediately while clustering/distance stats are still computing.
+  // runs in its own worker, so this doesn't block the story from rendering
+  // while clustering/distance stats are still computing.
   useEffect(() => {
     if (state.status === 'done') {
       analytics.run(state.points)
@@ -52,52 +50,45 @@ function App() {
     reset()
     analytics.reset()
     geocoding.reset()
+    window.scrollTo({ top: 0 })
   }
 
   if (state.status === 'parsing') {
     return <ParsingScreen progress={state.progress} onCancel={reset} />
   }
 
-  if (showMap) {
-    const points = state.status === 'done' ? state.points : undefined
+  if (state.status === 'done') {
+    return (
+      <ResultsStory
+        points={state.points}
+        analytics={analytics.state}
+        geocoding={geocoding.state}
+        displayPlaces={displayPlaces}
+        onLoadAnother={handleBack}
+      />
+    )
+  }
 
+  // The landing page's "Переглянути демо-карту" shortcut — a bare map with
+  // the placeholder route, with no history to build a story out of.
+  if (showDemoMap) {
     return (
       <div className="flex h-svh flex-col bg-ink-950">
         <header className="flex items-center justify-between border-b border-ink-800 bg-ink-900 px-6 py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink-50">
-              <Route className="h-5 w-5 text-trail-400" strokeWidth={2.2} />
-              Trailback
-            </div>
-            {points && (
-              <span className="font-mono text-xs text-ink-400">
-                {points.lat.length.toLocaleString('uk-UA')} точок
-                {points.recordsSkipped > 0 &&
-                  ` · пропущено ${points.recordsSkipped.toLocaleString('uk-UA')}`}
-              </span>
-            )}
+          <div className="flex items-center gap-2 font-display text-lg font-semibold text-ink-50">
+            <Route className="h-5 w-5 text-trail-400" strokeWidth={2.2} />
+            Trailback
           </div>
           <button
             type="button"
             onClick={handleBack}
             className="text-sm text-ink-400 transition hover:text-trail-300"
           >
-            ← Завантажити інший файл
+            ← Завантажити файл
           </button>
         </header>
-        <main className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
-          <div className="relative min-h-[45vh] flex-1">
-            <MapView points={points} places={displayPlaces} />
-          </div>
-          {points && (
-            <aside className="w-full shrink-0 overflow-y-auto border-t border-ink-800 bg-ink-900/60 md:w-[380px] md:border-l md:border-t-0">
-              <InsightsDashboard
-                analytics={analytics.state}
-                geocoding={geocoding.state}
-                displayPlaces={displayPlaces}
-              />
-            </aside>
-          )}
+        <main className="relative flex-1">
+          <MapView />
         </main>
       </div>
     )

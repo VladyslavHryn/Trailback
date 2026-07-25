@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
+  AlertTriangle,
   FileArchive,
   History,
   Map as MapIcon,
@@ -27,8 +28,8 @@ const GUIDE_STEPS = [
     body: 'Вибери формат JSON, один архів, і натисни «Create export».',
   },
   {
-    title: 'Завантаж і перетягни сюди',
-    body: 'Коли Google надішле лист — завантаж архів і перетягни його у зону вище.',
+    title: 'Розпакуй і завантаж сюди',
+    body: 'Коли Google надішле лист — розпакуй архів і перетягни у зону вище файл Records.json (або Timeline.json у новішому форматі) з нього.',
   },
 ]
 
@@ -48,18 +49,37 @@ const VALUE_POINTS = [
 ]
 
 type LandingPageProps = {
-  onContinue: () => void
+  onFileSelected: (file: File) => void
+  onDemo: () => void
+  /** Surfaced from the parser (e.g. unrecognized format) after an upload attempt. */
+  errorMessage?: string
 }
 
-export function LandingPage({ onContinue }: LandingPageProps) {
+export function LandingPage({
+  onFileSelected,
+  onDemo,
+  errorMessage,
+}: LandingPageProps) {
   const [isDragActive, setIsDragActive] = useState(false)
   const [isGuideOpen, setIsGuideOpen] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const displayedError = localError ?? errorMessage
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return
-    // Real parsing lands in Step 2 — for now, any selected file opens the map view.
-    onContinue()
+    const file = files[0]
+
+    if (!file.name.toLowerCase().endsWith('.json')) {
+      setLocalError(
+        'Підтримується лише .json — розпакуй архів Google Takeout і завантаж файл Records.json або Timeline.json звідти.',
+      )
+      return
+    }
+
+    setLocalError(null)
+    onFileSelected(file)
   }
 
   return (
@@ -133,10 +153,10 @@ export function LandingPage({ onContinue }: LandingPageProps) {
             />
             <div>
               <p className="text-base font-medium text-ink-50">
-                Перетягни архів Google Takeout сюди
+                Перетягни файл експорту Google сюди
               </p>
               <p className="mt-1 text-sm text-ink-400">
-                .json або .zip з експортом Location History
+                Records.json або Timeline.json (розпакований з архіву Takeout)
               </p>
             </div>
 
@@ -151,7 +171,7 @@ export function LandingPage({ onContinue }: LandingPageProps) {
 
             <button
               type="button"
-              onClick={onContinue}
+              onClick={onDemo}
               className="text-xs text-ink-400 underline decoration-ink-700 underline-offset-4 transition hover:text-trail-300"
             >
               Переглянути демо-карту
@@ -160,11 +180,22 @@ export function LandingPage({ onContinue }: LandingPageProps) {
             <input
               ref={inputRef}
               type="file"
-              accept=".json,.zip"
+              accept=".json"
               className="hidden"
               onChange={(e) => handleFiles(e.target.files)}
             />
           </div>
+
+          {displayedError && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+              <span>{displayedError}</span>
+            </motion.div>
+          )}
 
           <div className="mt-4 flex flex-col items-center gap-2 text-xs text-ink-400 sm:flex-row sm:justify-center sm:gap-4">
             <span className="inline-flex items-center gap-1.5">

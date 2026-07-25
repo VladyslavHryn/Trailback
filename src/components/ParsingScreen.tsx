@@ -1,0 +1,64 @@
+import { motion } from 'framer-motion'
+import { Loader2 } from 'lucide-react'
+import type { ParseProgress } from '../parsing/types'
+
+type ParsingScreenProps = {
+  progress: ParseProgress
+  onCancel: () => void
+}
+
+function formatMb(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(1)
+}
+
+export function ParsingScreen({ progress, onCancel }: ParsingScreenProps) {
+  const percent =
+    progress.totalBytes > 0
+      ? Math.min(100, Math.round((progress.bytesRead / progress.totalBytes) * 100))
+      : 0
+
+  return (
+    <div className="flex min-h-svh flex-col items-center justify-center bg-ink-950 px-6 text-ink-50">
+      <div className="w-full max-w-md rounded-2xl border border-ink-700 bg-ink-900/60 p-8 text-center">
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-trail-400" />
+
+        <h1 className="mt-5 font-display text-xl font-semibold text-ink-50">
+          Обробляємо твою геоісторію
+        </h1>
+        <p className="mt-2 text-sm text-ink-400">
+          Файл великий, тому це відбувається частинами прямо в браузері — і
+          нікуди не завантажується.
+        </p>
+
+        <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-ink-800">
+          <motion.div
+            className="h-full rounded-full bg-trail-500"
+            animate={{ width: `${percent}%` }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          />
+        </div>
+        <div className="mt-2 flex justify-between font-mono text-xs text-ink-400">
+          <span>{percent}%</span>
+          <span>
+            {formatMb(progress.bytesRead)} / {formatMb(progress.totalBytes)} МБ
+          </span>
+        </div>
+
+        <p className="mt-4 font-mono text-xs text-ink-400">
+          Знайдено точок: {progress.pointsFound.toLocaleString('uk-UA')}
+          {progress.recordsSkipped > 0 && (
+            <> · пропущено записів: {progress.recordsSkipped.toLocaleString('uk-UA')}</>
+          )}
+        </p>
+
+        <button
+          type="button"
+          onClick={onCancel}
+          className="mt-6 text-xs text-ink-400 underline decoration-ink-700 underline-offset-4 transition hover:text-trail-300"
+        >
+          Скасувати
+        </button>
+      </div>
+    </div>
+  )
+}

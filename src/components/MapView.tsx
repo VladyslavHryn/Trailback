@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import '../map/registerLeafletHeat'
 import type { ParsedPoints } from '../parsing/types'
+import { aggregateHeatmapPoints } from '../map/aggregateHeatmapPoints'
 
 // Placeholder route shown until a real file is parsed (and reused by the
 // landing page's "Переглянути демо-карту" shortcut).
@@ -32,13 +34,6 @@ export function createPulseIcon() {
   })
 }
 
-// A multi-year export can hold millions of raw GPS pings — one Leaflet
-// marker per point would choke the browser. Step 2 only needs to prove the
-// real data made it onto the map, so we draw an evenly-spaced sample capped
-// at this size, on a canvas renderer (cheap for large point counts). Step
-// 3's heatmap is what actually represents the full density of the history.
-const MAX_RENDERED_POINTS = 25_000
-
 type MapViewProps = {
   points?: ParsedPoints
 }
@@ -62,7 +57,18 @@ export function MapView({ points }: MapViewProps) {
 
     mapRef.current = map
 
+    // Leaflet measures the container once at construction time. If the
+    // flex layout around it hasn't settled yet (or the pane resizes later),
+    // the map is left thinking it's 0x0 — harmless for plain markers, but
+    // leaflet.heat's canvas throws (`getImageData` with a 0 width) instead
+    // of just rendering nothing. invalidateSize keeps the map's idea of its
+    // own size in sync with reality.
+    map.invalidateSize()
+    const resizeObserver = new ResizeObserver(() => map.invalidateSize())
+    resizeObserver.observe(containerRef.current)
+
     return () => {
+      resizeObserver.disconnect()
       map.remove()
       mapRef.current = null
     }
@@ -105,18 +111,23 @@ export function MapView({ points }: MapViewProps) {
         { padding: [32, 32] },
       )
 
-      const canvasRenderer = L.canvas({ padding: 0.5 })
-      const stride = Math.max(1, Math.ceil(count / MAX_RENDERED_POINTS))
-      for (let i = 0; i < count; i += stride) {
-        L.circleMarker([points.lat[i], points.lng[i]], {
-          renderer: canvasRenderer,
-          radius: 2,
-          weight: 0,
-          fillColor: '#f2a35e',
-          fillOpacity: 0.5,
-          interactive: false,
-        }).addTo(layerGroup)
-      }
+      // The whole-history heatmap is the actual differentiator over Google
+      // (which only ever shows one day at a time) — see
+      // aggregateHeatmapPoints for why raw pings are grid-aggregated first
+      // rather than fed to the heat layer directly or just downsampled.
+      const { points: heatPoints, maxIntensity } = aggregateHeatmapPoints(points)
+      L.heatLayer(heatPoints, {
+        radius: 16,
+        blur: 20,
+        max: maxIntensity,
+        minOpacity: 0.25,
+        gradient: {
+          0.1: 'rgba(63, 184, 168, 0)',
+          0.35: 'rgba(63, 184, 168, 0.7)',
+          0.65: '#e8853a',
+          1.0: '#f7c088',
+        },
+      }).addTo(layerGroup)
     } else {
       const latLngs = DEMO_POINTS.map((p) => [p.lat, p.lng] as [number, number])
       map.fitBounds(L.latLngBounds(latLngs), { padding: [64, 64] })

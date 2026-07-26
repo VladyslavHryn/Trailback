@@ -160,7 +160,27 @@ export function MapView({
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
-    const map = L.map(containerRef.current, { zoomControl: true, scrollWheelZoom })
+    // A Leaflet map with no view is not merely empty — it is BROKEN. It
+    // requests no tiles, refuses to add layers, and throws "Set map center
+    // and zoom first" the moment anything calls getCenter(), which a drag
+    // does. Giving it a neutral world view at construction means the map is
+    // always in a valid state; fitBounds then moves it to the real data a
+    // moment later. Cheap insurance against a failure mode whose symptom
+    // (an empty black rectangle) points nowhere near its cause.
+    const map = L.map(containerRef.current, {
+      zoomControl: true,
+      scrollWheelZoom,
+      center: [48.4, 31.2],
+      zoom: 5,
+    })
+
+    // This map instance has never been fitted, whatever a previous one did.
+    // The guard below is keyed on the points object, and that ref OUTLIVES
+    // the map: on a remount with the same points (React's development
+    // double-mount, or any re-created map) it would report "already fitted"
+    // for a map that had never had a view set at all, and leave it in the
+    // broken state described above.
+    fittedPointsRef.current = null
 
     const baseTiles = L.tileLayer(TILE_URL, {
       attribution: TILE_ATTRIBUTION,

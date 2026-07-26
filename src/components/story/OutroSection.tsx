@@ -1,4 +1,4 @@
-import { ArrowUp, Car, Footprints, Mountain, RotateCcw, TramFront } from 'lucide-react'
+import { ArrowUp, Car, Footprints, Mountain, RotateCcw, Route, TramFront } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { StorySection } from './StorySection'
 import { Reveal } from './Reveal'
@@ -79,19 +79,30 @@ export function OutroSection({ distance, onLoadAnother }: OutroSectionProps) {
     distance.totalKmByMode.walk + distance.totalKmByMode.transit + distance.totalKmByMode.drive
 
   return (
-    <StorySection
-      eyebrow="Підсумок"
-      title={
-        <>
-          Разом ти подолав
-          <br />
-          <span className="text-trail-400">
-            <NumberTicker value={totalKm} suffix=" км" />
-          </span>
-        </>
-      }
-      subtitle="Це вся дистанція, яку зафіксував твій телефон за весь час історії."
-    >
+    <StorySection eyebrow="Підсумок" index="06">
+      {/* The headline number is pulled out of StorySection's title slot and
+          given its own block, so it can be set far larger than a headline
+          would allow and sit on the same left axis as everything else. */}
+      <Reveal>
+        <div className="border-b border-ink-800 pb-10">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-400">
+            Разом ти подолав
+          </p>
+          <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-2">
+            <p className="font-display text-[clamp(4rem,15vw,11rem)] font-bold leading-[0.78] tracking-tighter text-trail-400">
+              <NumberTicker value={totalKm} />
+            </p>
+            <p className="pb-3 font-mono text-xs uppercase tracking-[0.18em] text-ink-400 md:text-sm">
+              кілометрів
+            </p>
+          </div>
+          <p className="mt-6 max-w-[46ch] text-sm leading-relaxed text-ink-400 md:text-base">
+            Це вся дистанція, яку зафіксував твій телефон за весь час історії.
+          </p>
+        </div>
+      </Reveal>
+
+      <div className="mt-12">
       {/* Bento rather than a uniform grid: the three transport modes are
           peers and read fine as small tiles, while the two "single most
           extreme moment" stats are the memorable ones and get the wide
@@ -146,11 +157,12 @@ export function OutroSection({ distance, onLoadAnother }: OutroSectionProps) {
               value={distance.longestJourney.km}
               suffix=" км"
               meta={`за ${formatDuration(distance.longestJourney.durationSec)}`}
-              icon={Mountain}
+              icon={Route}
               index={4}
             />
           </Reveal>
         )}
+        </div>
       </div>
 
       <Reveal index={5}>

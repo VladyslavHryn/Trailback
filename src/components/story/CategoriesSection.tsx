@@ -31,6 +31,7 @@ export function CategoriesSection({ categories }: CategoriesSectionProps) {
   return (
     <StorySection
       eyebrow="Категорії місць"
+      index="07"
       title={
         <>
           Найбільше часу —<br />

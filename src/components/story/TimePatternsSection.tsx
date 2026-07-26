@@ -26,6 +26,7 @@ export function TimePatternsSection({ timePatterns }: TimePatternsSectionProps) 
   return (
     <StorySection
       eyebrow="Ритм твого життя"
+      index="05"
       title={
         <>
           Твій пік — <span className="text-dusk-400">{peakHour}:00</span>,

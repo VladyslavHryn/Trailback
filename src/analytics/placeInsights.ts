@@ -69,28 +69,60 @@ export function summarizeCategories(
 // colors; districts are a secondary visual aid here; not a data-integrity
 // critical chart, so exact colorblind-safety validation wasn't run on it
 // the way the Step 3 heatmap ramp was.
-const DISTRICT_COLOR_PALETTE = [
-  '#25c79c', // jade — the product's "place" accent, so the first district
-  '#a3a8f7', // periwinkle
-  '#f77e8e', // rose
-  '#f59e0b', // amber
-  '#5fdcb9', // pale jade
-  '#7c83f0', // deep periwinkle
-  '#fcd34d', // pale amber
-  '#f0a5c0', // mauve-rose
+// A SEQUENTIAL scale on one hue, replacing the categorical rainbow this used
+// to be.
+//
+// The old version handed each district the next colour off a rotating list —
+// mint, periwinkle, rose, amber. That encoded nothing: the colours carried no
+// order, so the reader had to consult a legend to learn that pink meant
+// "Podil", and even then pink told them nothing about Podil. It also made
+// every screen it touched look like a chart template.
+//
+// Time spent is a MAGNITUDE, so it wants a magnitude scale: one hue, ramped
+// from deep and desaturated to bright and light. Reading it needs no legend —
+// brighter is more of your life — and the map pins and the districts list can
+// share the exact same function, so the two views finally agree instead of
+// each inventing its own colours.
+// Lightness in percent, chroma in OKLCH's own units. Chroma is kept under
+// ~0.13 because that's roughly the sRGB gamut boundary for this hue at these
+// lightnesses — asking for more just gets silently clamped by the browser,
+// which flattens the top of the ramp instead of extending it.
+const DISTRICT_SHADE_STOPS = [
+  { l: 30, c: 0.045 }, // least time: deep, nearly grey jade
+  { l: 45, c: 0.075 },
+  { l: 60, c: 0.1 },
+  { l: 73, c: 0.12 },
+  { l: 86, c: 0.13 }, // most time: bright and saturated
 ]
 
-/** Assigns each distinct district name a stable color, in first-seen order. */
-export function assignDistrictColors(districtNamesInOrder: string[]): Map<string, string> {
-  const colorByDistrict = new Map<string, string>()
-  for (const name of districtNamesInOrder) {
-    if (colorByDistrict.has(name)) continue
-    colorByDistrict.set(
-      name,
-      DISTRICT_COLOR_PALETTE[colorByDistrict.size % DISTRICT_COLOR_PALETTE.length],
-    )
-  }
-  return colorByDistrict
+/**
+ * Colour for a district/place given its share of the top entry's time (0..1).
+ *
+ * Interpolates in OKLCH rather than sRGB. Mixing hex values numerically
+ * darkens and desaturates through the middle of a ramp (the classic muddy
+ * midpoint); OKLCH is perceptually uniform, so equal steps in the input look
+ * like equal steps in brightness, which is the entire point of a magnitude
+ * scale.
+ */
+export function districtShade(share: number): string {
+  const t = Math.min(Math.max(share, 0), 1)
+  // Square-rooted so the low end of the range gets more of the ramp: most
+  // places sit far below the top one, and a linear scale would collapse them
+  // all into the same near-black.
+  const eased = Math.sqrt(t)
+
+  const scaled = eased * (DISTRICT_SHADE_STOPS.length - 1)
+  const lower = Math.floor(scaled)
+  const upper = Math.min(lower + 1, DISTRICT_SHADE_STOPS.length - 1)
+  const f = scaled - lower
+
+  const a = DISTRICT_SHADE_STOPS[lower]
+  const b = DISTRICT_SHADE_STOPS[upper]
+  const l = a.l + (b.l - a.l) * f
+  const c = a.c + (b.c - a.c) * f
+
+  // Hue fixed at the jade "place" accent's angle.
+  return `oklch(${l.toFixed(1)}% ${c.toFixed(3)} 172)`
 }
 
 export interface DistrictBreakdown {

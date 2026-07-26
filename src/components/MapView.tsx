@@ -1,11 +1,18 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import '../map/registerLeafletHeat'
 import type { ParsedPoints } from '../parsing/types'
 import type { DisplayPlace } from '../analytics/placeInsights'
-import { assignDistrictColors } from '../analytics/placeInsights'
+import { districtShade } from '../analytics/placeInsights'
 import { aggregateHeatmapPoints } from '../map/aggregateHeatmapPoints'
+import {
+  DEFAULT_HEAT_PRESET,
+  HEAT_PRESETS,
+  toLeafletOptions,
+  type HeatConfig,
+} from '../map/heatConfig'
+import { HeatTuner } from './dev/HeatTuner'
 
 const MAX_PLACE_MARKERS = 8
 
@@ -14,10 +21,6 @@ const MAX_PLACE_MARKERS = 8
 // places sit in the same neighbourhood — which, for a personal history, is
 // most of them. The rest stay as dots and reveal their name on hover.
 const MAX_LABELLED_PINS = 4
-
-// Plain hex, not a CSS var: it's interpolated into inline `--pin`, and the
-// pin's glow feeds it through color-mix(), which needs a real color value.
-const DEFAULT_PLACE_COLOR = '#25c79c'
 
 /** Guards against a place name breaking out of the markup or the layout. */
 function escapeHtml(value: string): string {
@@ -93,47 +96,6 @@ export const TILE_ATTRIBUTION =
 /** Pane for the label tiles: above the basemap, below the heat/marker data. */
 const LABELS_PANE = 'trailLabels'
 
-// Fraction of the peak cell intensity that counts as "fully hot". Below 1 so
-// the top of the colour ramp is actually reachable — see the `max` option.
-const HEAT_PEAK_HEADROOM = 0.8
-
-/**
- * Heat blob size for the CURRENT zoom, derived from the aggregation grid's
- * spacing rather than hard-coded.
- *
- * The grid spacing is fixed in degrees while leaflet.heat's radius is in
- * screen pixels, so projecting one cell at the current zoom converts between
- * the two and keeps neighbouring blobs at a roughly constant overlap as the
- * reader zooms. The 1.15 factor leaves them just touching: enough to read as
- * continuous where the data is continuous, without stacking many deep.
- *
- * Worth knowing how much this actually does, since it looks like it does
- * more: for a history confined to one city the grid is only a few metres
- * across, which projects to 1-3px at any normal zoom, so the result sits on
- * the lower clamp and behaves like a fixed radius. It earns its keep at the
- * other end — a history spanning a country has kilometre-wide cells, where a
- * fixed small radius would scatter the map with disconnected specks. What
- * prevents saturation in the city case is the intensity normalisation and
- * the gradient ramp, not this.
- *
- * The clamps are legibility bounds: below ~7px a blob is a speck, and past
- * ~44px it smears neighbouring places into one another.
- */
-export function heatRadiusFor(
-  map: Pick<L.Map, 'getCenter' | 'project'>,
-  cellSizeDeg: number,
-): { radius: number; blur: number } {
-  const center = map.getCenter()
-  const a = map.project([center.lat, center.lng])
-  const b = map.project([center.lat + cellSizeDeg, center.lng])
-  const cellPx = Math.abs(b.y - a.y)
-
-  const radius = Math.min(44, Math.max(7, cellPx * 1.15))
-  // Blur slightly wider than the radius is what gives each blob a soft
-  // shoulder instead of a hard disc edge.
-  return { radius, blur: radius * 1.35 }
-}
-
 // Shared with the landing page's hero demo so the "preview" and the real
 // map use the exact same marker style instead of two divergent look&feels.
 export function createPulseIcon() {
@@ -162,9 +124,22 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
   const mapRef = useRef<L.Map | null>(null)
   const layerGroupRef = useRef<L.LayerGroup | null>(null)
   const placesLayerRef = useRef<L.LayerGroup | null>(null)
-  /** Live `zoomend` handler for the heat layer, so it can be detached when
-   * the layer it belongs to is torn down and replaced. */
-  const heatSyncRef = useRef<(() => void) | null>(null)
+
+  // The live heat layer and the peak intensity it was normalised against,
+  // kept in refs so the tuner can push new options onto the existing layer
+  // instead of rebuilding it (rebuilding would re-run the whole aggregation
+  // and make dragging a slider feel like a page load).
+  const heatLayerRef = useRef<L.HeatLayer | null>(null)
+  const peakIntensityRef = useRef(0)
+
+  const [heatConfig, setHeatConfig] = useState<HeatConfig>(
+    HEAT_PRESETS[DEFAULT_HEAT_PRESET],
+  )
+  // Read through a ref inside the points effect: that effect must NOT re-run
+  // when the config changes (see the separate effect below), but it does need
+  // the current values when it first creates the layer.
+  const heatConfigRef = useRef(heatConfig)
+  heatConfigRef.current = heatConfig
 
   // Mount the map + base tiles once.
   useEffect(() => {
@@ -220,13 +195,19 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
     const map = mapRef.current
     if (!map) return
 
-    // Detach the previous heat layer's zoom handler before dropping the
-    // layer itself — otherwise every re-run leaks another listener that
-    // resizes a layer no longer on the map.
-    if (heatSyncRef.current) {
-      map.off('zoomend', heatSyncRef.current)
-      heatSyncRef.current = null
-    }
+    // Guards the deferred layer creation below against a superseded run of
+    // this effect. Without it there is a real race: the sizing retry is a
+    // setTimeout that closes over ITS OWN layerGroup, so when the effect
+    // re-runs (new points, or React's development double-mount) the pending
+    // callback from the previous run still fires, builds a heat layer, adds
+    // it to a group that has already been removed from the map, and — worst
+    // of all — overwrites heatLayerRef with it. The map then shows one layer
+    // while the tuner drives a detached one, so every slider looks dead.
+    let cancelled = false
+
+    // The heat layer belongs to the group being dropped, so clear the ref
+    // with it rather than leaving the tuner pointing at a detached layer.
+    heatLayerRef.current = null
     layerGroupRef.current?.remove()
     const layerGroup = L.layerGroup().addTo(map)
     layerGroupRef.current = layerGroup
@@ -261,11 +242,8 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
       // (which only ever shows one day at a time) — see
       // aggregateHeatmapPoints for why raw pings are grid-aggregated first
       // rather than fed to the heat layer directly or just downsampled.
-      const {
-        points: heatPoints,
-        maxIntensity,
-        cellSizeDeg,
-      } = aggregateHeatmapPoints(points)
+      const { points: heatPoints, maxIntensity } = aggregateHeatmapPoints(points)
+      peakIntensityRef.current = maxIntensity
 
       // Belt-and-suspenders on top of the invalidateSize()/ResizeObserver in
       // the mount effect: if the container still measures 0x0 right at this
@@ -275,61 +253,19 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
       // rendering nothing. Retrying a beat later rather than crashing the
       // whole map view is worth a little duplication here.
       const addHeatLayerWhenSized = (attemptsLeft: number) => {
+        if (cancelled) return
         const size = map.getSize()
         if ((size.x === 0 || size.y === 0) && attemptsLeft > 0) {
           setTimeout(() => addHeatLayerWhenSized(attemptsLeft - 1), 100)
           return
         }
 
-        const heatLayer = L.heatLayer(heatPoints, {
-          ...heatRadiusFor(map, cellSizeDeg),
-          // Normalising against slightly BELOW the peak cell, so the densest
-          // places actually reach the top of the gradient. Using the exact
-          // peak leaves the ramp's brightest stops unreachable — leaflet.heat
-          // re-bins the points into its own grid before normalising, so the
-          // busiest cell lands short of 1.0 and the "hot core" never gets
-          // hot. Measured: the core topped out around two-thirds opacity at
-          // 1.0, which reads as a smudge rather than a focal point.
-          max: maxIntensity * HEAT_PEAK_HEADROOM,
-          // A low floor matters as much as the ramp below: leaflet.heat
-          // clamps everything it draws to at least this alpha, so a high
-          // minOpacity (the old 0.25) gives every faintly-visited cell a
-          // visible flat wash and erases the difference between "passed
-          // through once" and "passed through often".
-          minOpacity: 0.08,
-          // Heat intensity is a MAGNITUDE (how often you were here), so this
-          // is a sequential scale — one hue ramped in lightness — not a
-          // blend of two hues. Crossing from teal to orange mid-ramp looked
-          // like a muddy brown stain where they met (RGB-interpolating
-          // between near-complementary hues desaturates instead of blending
-          // cleanly).
-          //
-          // The stop SPACING is what produces density falloff rather than a
-          // flat slab of colour. Most of the range is spent climbing
-          // through transparency in a dark copper, so sparse areas read as
-          // a faint stain; only the top fifth reaches full opacity, and only
-          // the very peak reaches the pale core. The previous ramp hit
-          // fully-opaque orange at 0.65 and had nothing left to say above
-          // it, which is why every moderately-visited street rendered as
-          // the same solid stroke.
-          gradient: {
-            0.0: 'rgba(120, 53, 15, 0)',
-            0.16: 'rgba(146, 64, 14, 0.26)',
-            0.32: 'rgba(180, 83, 9, 0.5)',
-            0.5: 'rgba(217, 119, 6, 0.72)',
-            0.66: 'rgba(245, 158, 11, 0.87)',
-            0.82: 'rgba(251, 191, 36, 0.95)',
-            1.0: 'rgba(254, 243, 199, 1)',
-          },
-        }).addTo(layerGroup)
-
-        // Re-derive the radius whenever the zoom changes, so the blob size
-        // keeps tracking the grid spacing instead of drifting away from it.
-        // See heatRadiusFor for how much this is really worth at city scale
-        // (little — it sits on the clamp) versus country scale (a lot).
-        const syncRadius = () => heatLayer.setOptions(heatRadiusFor(map, cellSizeDeg))
-        map.on('zoomend', syncRadius)
-        heatSyncRef.current = syncRadius
+        // Every visual parameter comes from heatConfig.ts — see that file for
+        // why these are tuned by eye through HeatTuner rather than derived.
+        heatLayerRef.current = L.heatLayer(
+          heatPoints,
+          toLeafletOptions(heatConfigRef.current, maxIntensity),
+        ).addTo(layerGroup)
       }
       addHeatLayerWhenSized(20)
     } else {
@@ -361,6 +297,10 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
           .bindTooltip(point.label, { direction: 'top', offset: [0, -10] })
       })
     }
+
+    return () => {
+      cancelled = true
+    }
   }, [points])
 
   // Place markers live in their own layer/effect, separate from the
@@ -381,15 +321,17 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
     placesLayerRef.current = placesLayer
 
     const shown = places.slice(0, MAX_PLACE_MARKERS)
-    // Markers colored by district (when known) so the map itself shows the
-    // district breakdown, not just the dashboard list — same color
-    // assignment logic as the dashboard's district cards.
-    const districtColors = assignDistrictColors(
-      shown.map((p) => p.district).filter((d): d is string => d != null),
-    )
+
+    // Pin colour encodes TIME SPENT, on one hue, ranked against the top
+    // place. Previously each district drew from a rotating rainbow, which
+    // looked like a legend the reader had to learn and meant nothing on its
+    // own — mint vs pink said only "different district", never "more of your
+    // life". Intensity on a single hue says the thing that matters, and the
+    // districts screen uses the identical scale so the two agree.
+    const topDuration = shown[0]?.totalDurationSec || 1
 
     shown.forEach((place, index) => {
-      const color = place.district ? (districtColors.get(place.district) ?? DEFAULT_PLACE_COLOR) : DEFAULT_PLACE_COLOR
+      const color = districtShade(place.totalDurationSec / topDuration)
 
       // Only the top few pins carry a visible name; the rest are bare dots
       // whose name is one hover away. A coordinate pair is a placeholder for
@@ -412,5 +354,26 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
     })
   }, [places])
 
-  return <div ref={containerRef} className="h-full w-full" />
+  // Push tuner changes onto the LIVE layer. Separate from the points effect
+  // on purpose: rebuilding the layer would redo the whole grid aggregation on
+  // every slider frame.
+  useEffect(() => {
+    const layer = heatLayerRef.current
+    if (!layer) return
+    layer.setOptions(toLeafletOptions(heatConfig, peakIntensityRef.current))
+  }, [heatConfig])
+
+  return (
+    <div ref={containerRef} className="h-full w-full">
+      {/* Dev builds only — stripped from production by the constant folding
+          on import.meta.env.DEV, so the panel and its state never ship. */}
+      {import.meta.env.DEV && points && points.lat.length > 0 && (
+        <HeatTuner
+          config={heatConfig}
+          onChange={setHeatConfig}
+          peakIntensity={peakIntensityRef.current}
+        />
+      )}
+    </div>
+  )
 }

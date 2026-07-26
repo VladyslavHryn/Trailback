@@ -1,7 +1,7 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import { StorySection } from './StorySection'
 import { Reveal } from './Reveal'
-import { formatDuration, formatDurationShort, visitsWord } from './format'
+import { formatDaysUniform, formatDuration, visitsWord } from './format'
 import { NumberTicker } from '../ui/NumberTicker'
 import { SpotlightCard } from '../ui/SpotlightCard'
 import { BorderBeam } from '../ui/BorderBeam'
@@ -46,7 +46,7 @@ export function TopPlacesSection({ places, spanDays }: TopPlacesSectionProps) {
 
           <div className="grid gap-8 p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:p-8">
             <div className="min-w-0">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-trail-400">
+              <p className="text-label-micro text-trail-400">
                 01 · Головне місце
               </p>
               <h3 className="mt-3 font-display text-3xl font-semibold leading-[1.05] tracking-tight text-ink-50 md:text-5xl">
@@ -62,10 +62,10 @@ export function TopPlacesSection({ places, spanDays }: TopPlacesSectionProps) {
             {/* The one number this screen exists to deliver, at a size
                 nothing else on the card competes with. */}
             <div className="md:text-right">
-              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-400">
+              <p className="text-label-micro text-ink-400">
                 Годин на день
               </p>
-              <p className="font-display text-[clamp(3.5rem,10vw,7rem)] font-bold leading-[0.82] tracking-tighter text-trail-300">
+              <p className="numeral-display text-trail-300">
                 <NumberTicker value={leaderHoursPerDay} decimals={1} />
               </p>
               <p className="mt-2 font-mono text-xs text-ink-400">
@@ -94,7 +94,7 @@ export function TopPlacesSection({ places, spanDays }: TopPlacesSectionProps) {
                       {place.displayName}
                     </h3>
                     <span className="shrink-0 font-mono text-xs text-ink-200">
-                      {formatDurationShort(place.totalDurationSec)}
+                      {formatDaysUniform(place.totalDurationSec)}
                     </span>
                   </div>
 

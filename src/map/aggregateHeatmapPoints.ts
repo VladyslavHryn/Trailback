@@ -80,13 +80,25 @@ export function aggregateHeatmapPoints(points: ParsedPoints): HeatmapAggregation
     bin.pingCount++
   }
 
-  // Raw ping counts as intensity would let an always-visited place (home,
-  // during sleep) completely wash out everywhere else on the color scale.
-  // A square-root compresses that range so secondary places you visit
-  // occasionally still show up instead of being invisible next to home.
+  // INTENSITY COMPRESSION. Ping counts per cell are extremely heavy-tailed:
+  // the cell containing home can hold four orders of magnitude more pings
+  // than the corner shop visited twice. Feeding that range to a colour ramp
+  // linearly gives a map with one white-hot dot and nothing else.
+  //
+  // The previous pass used a square root, which wasn't enough — with a peak
+  // around 40k pings against a tail of single visits, sqrt still leaves a
+  // ~200:1 ratio, so everything but home lands in the bottom half-percent of
+  // the scale. `log1p` compresses the tail far harder (the same inputs come
+  // out around 15:1) while staying strictly monotonic, so ordering is
+  // preserved: more time really is always brighter, just on a scale where
+  // the difference is visible rather than theoretical.
+  //
+  // This is the non-linear falloff that makes the gradation in the ramp
+  // usable; the ramp's own stops (see heatConfig.ts) then decide where the
+  // warm end starts.
   let heatPoints: HeatPoint[] = []
   for (const bin of bins.values()) {
-    const intensity = Math.sqrt(bin.pingCount)
+    const intensity = Math.log1p(bin.pingCount)
     heatPoints.push([bin.latSum / bin.pingCount, bin.lngSum / bin.pingCount, intensity])
   }
 

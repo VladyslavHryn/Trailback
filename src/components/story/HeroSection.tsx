@@ -50,41 +50,49 @@ export function HeroSection({ pointCount, spanDays, placeCount }: HeroSectionPro
 
       <Particles density={80} />
 
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-[18vh] md:px-10">
+      {/* Same rail grid as every other section, so the opening screen starts
+          on the SAME left axis as the six that follow. It previously used a
+          plain centred container, which put the biggest number in the product
+          nearly 200px to the left of every heading after it — the reader's eye
+          had to re-find the margin on screen two. The rail also lets the hero
+          carry "01" and take its place in the numbered sequence rather than
+          sitting outside it. */}
+      <div className="relative z-10 mx-auto grid w-full max-w-6xl gap-y-8 px-6 pb-[18vh] md:grid-cols-[7rem_minmax(0,1fr)] md:gap-x-12 md:px-10 lg:grid-cols-[9rem_minmax(0,1fr)]">
         <Reveal>
-          <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-signal-400 md:text-xs">
-            Твоя геоісторія
-          </p>
-        </Reveal>
-
-        {/* The count and its unit share a baseline, with the unit kept small
-            and set in mono — the pairing reads as one measurement rather than
-            as a headline followed by a caption. */}
-        <Reveal index={1}>
-          <div className="mt-6 flex flex-wrap items-end gap-x-6 gap-y-2">
-            <p className="font-display text-[clamp(4rem,18vw,13rem)] font-bold leading-[0.78] tracking-tighter text-trail-400">
-              <NumberTicker value={pointCount} delay={0.3} />
-            </p>
-            <p className="pb-3 font-mono text-xs uppercase tracking-[0.18em] text-ink-400 md:text-sm">
-              точок
-            </p>
+          <div>
+            <p className="font-mono text-xs text-ink-600 md:text-sm">01</p>
+            <p className="text-label mt-2 text-signal-400">Твоя геоісторія</p>
           </div>
         </Reveal>
 
-        <div className="mt-10 grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] md:gap-16">
-          <Reveal index={2}>
-            <h1 className="max-w-[24ch] font-display text-2xl font-semibold leading-[1.1] tracking-tight text-ink-50 md:text-4xl">
-              за {formatDaysSpan(spanDays)} — уперше на одній карті
-            </h1>
+        <div>
+          {/* The count and its unit share a baseline, with the unit kept small
+              and set in mono — the pairing reads as one measurement rather
+              than as a headline followed by a caption. */}
+          <Reveal index={1}>
+            <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
+              <p className="numeral-hero text-trail-400">
+                <NumberTicker value={pointCount} delay={0.3} />
+              </p>
+              <p className="text-label pb-3 text-ink-400">точок</p>
+            </div>
           </Reveal>
 
-          <Reveal index={3}>
-            <p className="max-w-[44ch] text-sm leading-relaxed text-ink-400 md:pt-2 md:text-base">
-              Google показував тобі лише один день за раз. Ось уся твоя історія
-              разом — {formatNumber(placeCount)} {placesWord(placeCount)}, звички
-              та маршрути, які склались непомітно для тебе самого.
-            </p>
-          </Reveal>
+          <div className="mt-10 grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] md:gap-16">
+            <Reveal index={2}>
+              <h1 className="max-w-[24ch] font-display text-2xl font-semibold leading-[1.1] tracking-tight text-ink-50 md:text-4xl">
+                за {formatDaysSpan(spanDays)} — уперше на одній карті
+              </h1>
+            </Reveal>
+
+            <Reveal index={3}>
+              <p className="max-w-[44ch] text-sm leading-relaxed text-ink-400 md:pt-2 md:text-base">
+                Google показував тобі лише один день за раз. Ось уся твоя
+                історія разом — {formatNumber(placeCount)} {placesWord(placeCount)},
+                звички та маршрути, які склались непомітно для тебе самого.
+              </p>
+            </Reveal>
+          </div>
         </div>
       </div>
 
@@ -94,7 +102,7 @@ export function HeroSection({ pointCount, spanDays, placeCount }: HeroSectionPro
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2, duration: 0.8 }}
       >
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-400">
+        <span className="text-label-micro text-ink-400">
           Гортай
         </span>
         <motion.div

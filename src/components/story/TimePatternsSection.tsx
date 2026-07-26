@@ -29,16 +29,16 @@ export function TimePatternsSection({ timePatterns }: TimePatternsSectionProps) 
       index="05"
       title={
         <>
-          Твій пік — <span className="text-dusk-400">{peakHour}:00</span>,
+          Твій пік — <span className="text-trail-400">{peakHour}:00</span>,
           <br />
-          найактивніший день — <span className="text-dusk-400">{peakDay}</span>
+          найактивніший день — <span className="text-trail-400">{peakDay}</span>
         </>
       }
     >
       <div className="flex flex-col gap-16">
         <div>
           <Reveal>
-            <p className="mb-6 font-mono text-xs uppercase tracking-[0.2em] text-ink-400">
+            <p className="mb-6 text-label text-ink-400">
               За годинами доби
             </p>
           </Reveal>
@@ -48,13 +48,13 @@ export function TimePatternsSection({ timePatterns }: TimePatternsSectionProps) 
             highlightIndex={timePatterns.busiestHour}
             labelStep={3}
             ariaLabel="Активність за годинами доби"
-            accent="time"
+            accent="magnitude"
           />
         </div>
 
         <div>
           <Reveal>
-            <p className="mb-6 font-mono text-xs uppercase tracking-[0.2em] text-ink-400">
+            <p className="mb-6 text-label text-ink-400">
               За днями тижня
             </p>
           </Reveal>
@@ -63,7 +63,7 @@ export function TimePatternsSection({ timePatterns }: TimePatternsSectionProps) 
             labels={WEEKDAY_LABELS}
             highlightIndex={timePatterns.busiestWeekdayIndex}
             ariaLabel="Активність за днями тижня"
-            accent="time"
+            accent="magnitude"
           />
         </div>
       </div>

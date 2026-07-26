@@ -61,12 +61,12 @@ export function NumberTicker({
   useEffect(() => {
     if (prefersReducedMotion) return
     return spring.on('change', (latest) => {
-      if (ref.current) ref.current.textContent = format(latest) + suffix
+      if (ref.current) ref.current.textContent = format(latest)
     })
     // `format` is recreated each render but only closes over `decimals`,
     // which is in the dep list — no stale-closure risk here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spring, decimals, suffix, prefersReducedMotion])
+  }, [spring, decimals, prefersReducedMotion])
 
   const finalText = format(value) + suffix
 
@@ -80,8 +80,32 @@ export function NumberTicker({
         {/* Start at zero so the roll-up has somewhere to travel from —
             except under reduced motion, where nothing animates and the
             number simply has to be correct on first paint. */}
-        {prefersReducedMotion ? finalText : format(0) + suffix}
+        {prefersReducedMotion ? format(value) : format(0)}
       </span>
+
+      {/* The unit is a SEPARATE span, and this is a correctness fix rather
+          than a nicety. Hero numerals are set with heavy negative tracking
+          (-0.05em, which at 150px is nearly 8px); applied to "73%" that
+          tracking pulls the percent sign hard into the 3 until they touch.
+          Kerning is a property of a glyph PAIR, so the fix has to live at the
+          boundary: the unit opts out of the numeral tracking, takes a little
+          positive space back, and sits slightly smaller, which is also how
+          a percent sign is normally cut against lining figures. */}
+      {suffix && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            'text-[0.62em] tracking-normal',
+            // A unit written as a word ("км") was authored with a leading
+            // space and needs a real word gap; a tight sign ("%") needs only
+            // the hair of space the negative tracking stole.
+            /^\s/.test(suffix) ? 'ml-[0.2em]' : 'ml-[0.04em]',
+          )}
+        >
+          {suffix.trim()}
+        </span>
+      )}
+
       <span className="sr-only">{finalText}</span>
     </span>
   )

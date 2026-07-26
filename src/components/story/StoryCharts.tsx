@@ -8,15 +8,26 @@ import { cn } from '../../lib/cn'
 // only ever shows a single measure at a time.
 
 /**
- * Which accent a chart speaks in. Charts don't get to pick a colour for
- * looks — the accent says what KIND of quantity is on screen, so the reader
- * builds one mapping and keeps it across the whole story: amber means
- * density/magnitude, jade means places, periwinkle means time.
+ * Which accent a chart speaks in — and there are only two, because the
+ * palette only means two things.
+ *
+ * `magnitude` (amber) is the default and covers anything answering "how
+ * much": hours in a day, activity per weekday, distance. It is the SAME
+ * amber as every hero number in the story, which is the point — a
+ * highlighted column and a headline figure are the same kind of statement,
+ * so they must not be different colours. `place` (jade) is only for charts
+ * whose rows are named locations.
+ *
+ * A third, periwinkle "time" accent used to exist. Time isn't a separate
+ * category from magnitude here — the charts measure how MUCH activity falls
+ * in an hour — so it was a colour without a meaning, and a violet-blue one
+ * at that, which is the most default-looking choice available on a dark
+ * surface.
  */
-export type ChartAccent = 'heat' | 'place' | 'time'
+export type ChartAccent = 'magnitude' | 'place'
 
 const ACCENT_TOKENS: Record<ChartAccent, { bar: string; text: string; glow: string }> = {
-  heat: {
+  magnitude: {
     bar: 'var(--color-trail-400)',
     text: 'text-trail-300',
     glow: '0 0 26px rgba(245, 158, 11, 0.5)',
@@ -25,11 +36,6 @@ const ACCENT_TOKENS: Record<ChartAccent, { bar: string; text: string; glow: stri
     bar: 'var(--color-signal-500)',
     text: 'text-signal-300',
     glow: '0 0 26px rgba(37, 199, 156, 0.45)',
-  },
-  time: {
-    bar: 'var(--color-dusk-500)',
-    text: 'text-dusk-400',
-    glow: '0 0 26px rgba(124, 131, 240, 0.5)',
   },
 }
 
@@ -59,7 +65,7 @@ export function ColumnChart({
   highlightIndex,
   labelStep = 1,
   ariaLabel,
-  accent = 'time',
+  accent = 'magnitude',
 }: ColumnChartProps) {
   const prefersReducedMotion = useReducedMotion()
   const max = Math.max(...values, 1)
@@ -101,16 +107,25 @@ export function ColumnChart({
         })}
       </div>
 
+      {/* AXIS TICKS. The step is honoured strictly — an axis labelled every
+          three hours must read 00, 03, 06 … and nothing else. This used to
+          also force a label onto the peak, which inserted a stray "20"
+          between 18 and 21 and broke the scale's rhythm exactly where the
+          reader is trying to judge position. The peak is already marked, by
+          the one thing on the chart that is a different colour; it doesn't
+          need a second, scale-breaking announcement. The tick that does fall
+          on the peak still takes the accent colour, so the highlight and the
+          axis agree. */}
       <div className="mt-3 flex gap-[3px] md:gap-1.5">
         {labels.map((label, i) => (
           <div key={i} className="flex-1 text-center">
             <span
               className={cn(
-                'font-mono text-[10px] md:text-xs',
+                'font-mono text-[10px] font-medium md:text-[13px]',
                 i === highlightIndex ? tokens.text : 'text-ink-400',
               )}
             >
-              {i % labelStep === 0 || i === highlightIndex ? label : ''}
+              {i % labelStep === 0 ? label : ''}
             </span>
           </div>
         ))}

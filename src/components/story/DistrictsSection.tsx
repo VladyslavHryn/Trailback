@@ -1,7 +1,7 @@
 import { StorySection } from './StorySection'
 import { Reveal } from './Reveal'
 import { BreakdownBars, type BreakdownRow } from './StoryCharts'
-import { formatDurationShort } from './format'
+import { exactDurationIfDifferent, formatDaysUniform } from './format'
 import { NumberTicker } from '../ui/NumberTicker'
 import { districtShade, type DistrictBreakdown } from '../../analytics/placeInsights'
 
@@ -29,7 +29,8 @@ export function DistrictsSection({ districts, geocodingPending }: DistrictsSecti
   const rows: BreakdownRow[] = rest.map((d) => ({
     key: d.district,
     label: d.district,
-    value: formatDurationShort(d.totalDurationSec),
+    value: formatDaysUniform(d.totalDurationSec),
+    meta: exactDurationIfDifferent(d.totalDurationSec) ?? undefined,
     ratio: d.shareOfKnownTime,
     // Same single-hue magnitude scale as the map pins: brighter = more of
     // your life spent there. Scaled against the leader so the ramp uses its
@@ -53,20 +54,26 @@ export function DistrictsSection({ districts, geocodingPending }: DistrictsSecti
                     the words do. */}
                 <div className="mt-8 flex flex-wrap items-end gap-x-8 gap-y-4">
                   <p
-                    className="font-display text-[clamp(4.5rem,13vw,9.5rem)] font-bold leading-[0.8] tracking-tighter"
+                    className="numeral-hero"
                     style={{ color: districtShade(1) }}
                   >
                     <NumberTicker value={top.shareOfKnownTime * 100} suffix="%" />
                   </p>
                   <div className="pb-2">
-                    <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-400">
+                    <p className="text-label-micro text-ink-400">
                       Найбільший район
                     </p>
                     <p className="mt-1.5 font-display text-xl font-semibold text-ink-50 md:text-2xl">
                       {top.district}
                     </p>
                     <p className="mt-1 font-mono text-xs text-ink-400">
-                      {formatDurationShort(top.totalDurationSec)}
+                      {formatDaysUniform(top.totalDurationSec)}
+                      {exactDurationIfDifferent(top.totalDurationSec) && (
+                        <span className="text-ink-600">
+                          {' · '}
+                          {exactDurationIfDifferent(top.totalDurationSec)}
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -80,11 +87,17 @@ export function DistrictsSection({ districts, geocodingPending }: DistrictsSecti
             </div>
           )}
 
+          {/* Says outright that a district is a SUM of places. Without this
+              the screens look like they disagree: a place shows 275 days
+              while its district shows 278, and the natural reading is a
+              counting bug rather than "the district also contains everywhere
+              else you went in it". */}
           <Reveal index={rows.length}>
             <p className="mt-10 max-w-[52ch] text-xs leading-relaxed text-ink-400">
-              Що яскравіший відтінок — то більше часу там пройшло. Відсотки
-              рахуються серед топ-місць, для яких вдалося визначити район через
-              OpenStreetMap.
+              Район — це сума всіх твоїх місць у ньому, тому його час завжди
+              більший за час окремого місця з попереднього екрана. Що яскравіший
+              відтінок — то більше часу там пройшло. Відсотки рахуються серед
+              топ-місць, для яких вдалося визначити район через OpenStreetMap.
             </p>
           </Reveal>
         </>

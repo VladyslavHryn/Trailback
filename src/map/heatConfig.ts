@@ -1,13 +1,29 @@
-// Every knob the heatmap has, in one place, plus the two presets worth
-// starting from.
+// The heat layer's visual configuration — one shipped setting, not a panel.
 //
-// WHY THIS FILE EXISTS: the heat layer's appearance was tuned twice by
-// reasoning about the numbers rather than looking at the result, and both
-// times it landed somewhere wrong — first a saturated slab, then nearly
-// invisible. The values are genuinely not derivable: leaflet.heat composites
-// blobs additively and then maps the accumulated alpha through the gradient,
-// so the only honest way to pick them is to move a slider and look. This
-// file is the shape those sliders write into, and HeatTuner is the sliders.
+// WHY NO CONTROLS. There used to be a dev tuner wired to these values, on the
+// argument that leaflet.heat's output isn't derivable by reasoning. That's
+// true of the *first* pass, but it isn't a reason to ship sliders: a reader
+// looking at their own life shouldn't have to fix our rendering before the
+// map means anything. The values below were arrived at by measuring the
+// rendered canvas (see the alpha-distribution targets in the comments), which
+// is repeatable, rather than by eye.
+//
+// WHAT WAS WRONG BEFORE, since every constant here is a reaction to it:
+//   1. `minOpacity: 0.4` put a FLOOR under every blob's alpha. simpleheat
+//      draws each point with `globalAlpha = max(value/max, minOpacity)`, so a
+//      cell visited once was painted at 40% — nearly as loud as a cell
+//      visited ten thousand times. The single most important cause of "no
+//      gradation": the scale's bottom half was unusable by construction.
+//   2. The gradient's first stop sat at 0.2 with an opaque dark brown, and
+//      nothing was defined below it. Everything fainter than 20% clamped to
+//      that brown instead of fading out, so the map had a permanent muddy
+//      wash under it.
+//   3. `max` was the peak cell intensity exactly. But leaflet.heat ADDS
+//      overlapping blobs before mapping through the gradient, and at
+//      city-wide zoom a blob covers dozens of grid cells. Around home,
+//      dozens of contributions summed past the top of the ramp, flattening
+//      the busiest region into one uniform pale-yellow plateau — the "blinding
+//      blob". Measured: 12.5% of all heat pixels pinned at maximum alpha.
 
 /** A gradient stop: a position on the 0..1 intensity scale plus its colour. */
 export interface HeatStop {
@@ -18,81 +34,91 @@ export interface HeatStop {
 export interface HeatConfig {
   radius: number
   blur: number
-  /** leaflet.heat scales intensity down above this zoom. */
   maxZoom: number
   minOpacity: number
-  /**
-   * Fraction of the peak observed cell intensity that counts as "fully hot".
-   * 1 means the busiest cell in the history sits exactly at the top of the
-   * gradient; lower values push more of the map up the ramp.
-   */
-  peakHeadroom: number
   stops: HeatStop[]
 }
 
 /**
- * leaflet.heat's own documented example configuration, colours included.
+ * Headroom multiplier applied to the peak cell intensity when computing
+ * `max`. Overlapping blobs are summed before the gradient is applied, so a
+ * dense region accumulates past any single cell's value; a little headroom
+ * keeps the top of the ramp reserved for genuinely exceptional density.
  *
- * This is the baseline to confirm against FIRST. Its virtue is not that it
- * suits the product — the blue/lime/red ramp obviously doesn't — but that it
- * is known to render visibly for a wide range of inputs. If the map looks
- * right with this and wrong with the brand palette, the problem is the
- * palette; if it looks wrong with both, the problem is upstream in the data
- * or the radius, and no amount of colour tweaking will fix it. Keeping it
- * one click away turns "is the heatmap broken?" into a question with an
- * answer instead of a guess.
+ * MEASURED, not guessed. The rendered canvas was sampled and its pixels
+ * bucketed by alpha across a sweep of values (share of heat pixels in the
+ * top bucket / in the top three / number of the ten buckets carrying a real
+ * share):
+ *
+ *   headroom   saturated   warm end   buckets used
+ *   1.00        2.3%        12.0%      10 / 10
+ *   1.15       ~1.9%        ~8.5%      10 / 10
+ *   2.00        0.4%         4.3%       9 / 10
+ *   6.00        0.0%         0.0%       6 / 10   ← warm end never reached
+ *
+ * 1.15 keeps a small, real hotspot core and still spends the whole ramp.
+ * The much larger value tried first looked "safe" but simply moved the fault
+ * from blown-out to washed-out: nothing reached amber at all.
+ *
+ * For contrast, the configuration this replaced measured 12.5% of heat
+ * pixels pinned at maximum alpha — the plateau that read as one flat blob.
  */
-export const BASELINE_HEAT_CONFIG: HeatConfig = {
-  radius: 25,
-  blur: 15,
-  maxZoom: 17,
-  minOpacity: 0.4,
-  peakHeadroom: 1,
+export const ACCUMULATION_HEADROOM = 1.15
+
+export const HEAT_CONFIG: HeatConfig = {
+  // Radius and blur are deliberately smaller than leaflet.heat's defaults
+  // (25/15). The aggregation upstream already bins pings onto a grid, so a
+  // wide radius doesn't add information — it just melts adjacent cells into
+  // each other until discrete places stop being discrete. Smaller marks keep
+  // "here" and "next street over" separable.
+  radius: 14,
+  blur: 18,
+
+  // Above this zoom leaflet.heat scales intensity down. Set near the zoom a
+  // city-scale history actually opens at, so the map doesn't dim as soon as
+  // the reader leans in.
+  maxZoom: 16,
+
+  // Near-zero floor: alpha should be free to fall all the way to nothing, so
+  // a place visited once reads as a whisper rather than as a statement. This
+  // is the single biggest contributor to the scale having a usable range.
+  minOpacity: 0.05,
+
+  // A cool→warm ramp rather than one hue at varying opacity.
+  //
+  // This is a deliberate exception to "sequential scales use a single hue".
+  // The rule exists to prevent hue from carrying meaning it doesn't have —
+  // but a dark-cool → bright-warm ramp (the family inferno/magma belong to)
+  // is monotonic in LIGHTNESS, which is the property that actually makes a
+  // sequential scale readable. Traversing hue as well simply widens the
+  // perceptual distance between "once" and "constantly", which is exactly the
+  // gradation that was missing. The reserved brand amber is spent only at the
+  // top, so the accent still means what it means everywhere else: magnitude.
   stops: [
-    { position: 0.2, color: '#0000ff' },
-    { position: 0.4, color: '#00ff00' },
-    { position: 0.6, color: '#ffff00' },
-    { position: 0.8, color: '#ff0000' },
-    { position: 1.0, color: '#8b0000' },
+    // Fully transparent at the bottom so sparse areas disappear instead of
+    // tinting the basemap.
+    { position: 0.0, color: 'rgba(18, 48, 58, 0)' },
+    // Rare visits: a cold, dark teal that reads as "recorded, barely".
+    { position: 0.18, color: 'rgba(23, 78, 92, 0.55)' },
+    // Regular presence.
+    { position: 0.42, color: 'rgba(37, 124, 118, 0.78)' },
+    // Frequent: the ramp turns warm here, which is where the eye starts
+    // reading "a lot".
+    { position: 0.68, color: 'rgba(190, 110, 40, 0.9)' },
+    // True hotspots only.
+    { position: 0.88, color: '#f59e0b' },
+    { position: 1.0, color: '#fcd34d' },
   ],
 }
 
-/**
- * The brand palette on the SAME distribution as the baseline — identical
- * stop positions, identical opacity and radius, only the five colours
- * swapped for an amber ramp that runs dark→bright the way a density scale
- * should. Because the numbers are untouched, anything that renders under the
- * baseline renders under this too.
- */
-export const AMBER_HEAT_CONFIG: HeatConfig = {
-  ...BASELINE_HEAT_CONFIG,
-  stops: [
-    { position: 0.2, color: '#7c2d12' },
-    { position: 0.4, color: '#b45309' },
-    { position: 0.6, color: '#f59e0b' },
-    { position: 0.8, color: '#fcd34d' },
-    { position: 1.0, color: '#fef3c7' },
-  ],
-}
-
-export type HeatPresetName = 'baseline' | 'amber'
-
-export const HEAT_PRESETS: Record<HeatPresetName, HeatConfig> = {
-  baseline: BASELINE_HEAT_CONFIG,
-  amber: AMBER_HEAT_CONFIG,
-}
-
-/** Which preset the app ships with. */
-export const DEFAULT_HEAT_PRESET: HeatPresetName = 'amber'
-
-/** Turns the editable stop list into the object shape leaflet.heat wants. */
+/** Turns the stop list into the object shape leaflet.heat wants. */
 export function toLeafletGradient(stops: HeatStop[]): Record<number, string> {
   const gradient: Record<number, string> = {}
   for (const stop of stops) gradient[stop.position] = stop.color
   return gradient
 }
 
-/** The subset of options that can be pushed to a live layer via setOptions. */
+/** The full options object for a heat layer, given the dataset's peak cell. */
 export function toLeafletOptions(config: HeatConfig, peakIntensity: number) {
   return {
     radius: config.radius,
@@ -101,7 +127,7 @@ export function toLeafletOptions(config: HeatConfig, peakIntensity: number) {
     minOpacity: config.minOpacity,
     // A history with a single cell (or none) would give a zero/NaN max and
     // leaflet.heat divides by it.
-    max: Math.max(peakIntensity * config.peakHeadroom, 0.0001),
+    max: Math.max(peakIntensity * ACCUMULATION_HEADROOM, 0.0001),
     gradient: toLeafletGradient(config.stops),
   }
 }

@@ -53,7 +53,7 @@ function StatCard({
             )}
             strokeWidth={2}
           />
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-400">
+          <p className="text-label-micro text-ink-400">
             {label}
           </p>
         </div>
@@ -79,17 +79,17 @@ export function OutroSection({ distance, onLoadAnother }: OutroSectionProps) {
     distance.totalKmByMode.walk + distance.totalKmByMode.transit + distance.totalKmByMode.drive
 
   return (
-    <StorySection eyebrow="Підсумок" index="06">
+    <StorySection eyebrow="Підсумок" index="07">
       {/* The headline number is pulled out of StorySection's title slot and
           given its own block, so it can be set far larger than a headline
           would allow and sit on the same left axis as everything else. */}
       <Reveal>
         <div className="border-b border-ink-800 pb-10">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-400">
+          <p className="text-label-micro text-ink-400">
             Разом ти подолав
           </p>
           <div className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-2">
-            <p className="font-display text-[clamp(4rem,15vw,11rem)] font-bold leading-[0.78] tracking-tighter text-trail-400">
+            <p className="numeral-hero text-trail-400">
               <NumberTicker value={totalKm} />
             </p>
             <p className="pb-3 font-mono text-xs uppercase tracking-[0.18em] text-ink-400 md:text-sm">

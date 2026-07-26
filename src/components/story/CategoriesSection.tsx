@@ -1,7 +1,7 @@
 import { StorySection } from './StorySection'
 import { Reveal } from './Reveal'
 import { BreakdownBars, type BreakdownRow } from './StoryCharts'
-import { formatDuration, formatDurationShort } from './format'
+import { formatDaysUniform, formatDuration } from './format'
 import type { CategoryBreakdown } from '../../analytics/placeInsights'
 
 type CategoriesSectionProps = {
@@ -22,7 +22,7 @@ export function CategoriesSection({ categories }: CategoriesSectionProps) {
   const rows: BreakdownRow[] = shown.map((c) => ({
     key: c.category,
     label: c.category,
-    value: formatDurationShort(c.totalDurationSec),
+    value: formatDaysUniform(c.totalDurationSec),
     ratio: c.totalDurationSec / max,
   }))
 
@@ -31,7 +31,7 @@ export function CategoriesSection({ categories }: CategoriesSectionProps) {
   return (
     <StorySection
       eyebrow="Категорії місць"
-      index="07"
+      index="06"
       title={
         <>
           Найбільше часу —<br />

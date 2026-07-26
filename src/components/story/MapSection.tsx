@@ -33,7 +33,7 @@ export function MapSection({ points, places }: MapSectionProps) {
           <Reveal>
             <div>
               <p className="font-mono text-xs text-ink-600">02</p>
-              <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-signal-400 md:text-[11px]">
+              <p className="mt-2 text-label-micro text-signal-400 md:text-[11px]">
                 Уся історія разом
               </p>
             </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import '../map/registerLeafletHeat'
@@ -6,13 +6,7 @@ import type { ParsedPoints } from '../parsing/types'
 import type { DisplayPlace } from '../analytics/placeInsights'
 import { districtShade } from '../analytics/placeInsights'
 import { aggregateHeatmapPoints } from '../map/aggregateHeatmapPoints'
-import {
-  DEFAULT_HEAT_PRESET,
-  HEAT_PRESETS,
-  toLeafletOptions,
-  type HeatConfig,
-} from '../map/heatConfig'
-import { HeatTuner } from './dev/HeatTuner'
+import { HEAT_CONFIG, toLeafletOptions } from '../map/heatConfig'
 
 const MAX_PLACE_MARKERS = 8
 
@@ -125,21 +119,7 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
   const layerGroupRef = useRef<L.LayerGroup | null>(null)
   const placesLayerRef = useRef<L.LayerGroup | null>(null)
 
-  // The live heat layer and the peak intensity it was normalised against,
-  // kept in refs so the tuner can push new options onto the existing layer
-  // instead of rebuilding it (rebuilding would re-run the whole aggregation
-  // and make dragging a slider feel like a page load).
   const heatLayerRef = useRef<L.HeatLayer | null>(null)
-  const peakIntensityRef = useRef(0)
-
-  const [heatConfig, setHeatConfig] = useState<HeatConfig>(
-    HEAT_PRESETS[DEFAULT_HEAT_PRESET],
-  )
-  // Read through a ref inside the points effect: that effect must NOT re-run
-  // when the config changes (see the separate effect below), but it does need
-  // the current values when it first creates the layer.
-  const heatConfigRef = useRef(heatConfig)
-  heatConfigRef.current = heatConfig
 
   // Mount the map + base tiles once.
   useEffect(() => {
@@ -243,7 +223,6 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
       // aggregateHeatmapPoints for why raw pings are grid-aggregated first
       // rather than fed to the heat layer directly or just downsampled.
       const { points: heatPoints, maxIntensity } = aggregateHeatmapPoints(points)
-      peakIntensityRef.current = maxIntensity
 
       // Belt-and-suspenders on top of the invalidateSize()/ResizeObserver in
       // the mount effect: if the container still measures 0x0 right at this
@@ -260,11 +239,11 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
           return
         }
 
-        // Every visual parameter comes from heatConfig.ts — see that file for
-        // why these are tuned by eye through HeatTuner rather than derived.
+        // Every visual parameter comes from heatConfig.ts, which documents
+        // why each value is what it is.
         heatLayerRef.current = L.heatLayer(
           heatPoints,
-          toLeafletOptions(heatConfigRef.current, maxIntensity),
+          toLeafletOptions(HEAT_CONFIG, maxIntensity),
         ).addTo(layerGroup)
       }
       addHeatLayerWhenSized(20)
@@ -354,26 +333,5 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
     })
   }, [places])
 
-  // Push tuner changes onto the LIVE layer. Separate from the points effect
-  // on purpose: rebuilding the layer would redo the whole grid aggregation on
-  // every slider frame.
-  useEffect(() => {
-    const layer = heatLayerRef.current
-    if (!layer) return
-    layer.setOptions(toLeafletOptions(heatConfig, peakIntensityRef.current))
-  }, [heatConfig])
-
-  return (
-    <div ref={containerRef} className="h-full w-full">
-      {/* Dev builds only — stripped from production by the constant folding
-          on import.meta.env.DEV, so the panel and its state never ship. */}
-      {import.meta.env.DEV && points && points.lat.length > 0 && (
-        <HeatTuner
-          config={heatConfig}
-          onChange={setHeatConfig}
-          peakIntensity={peakIntensityRef.current}
-        />
-      )}
-    </div>
-  )
+  return <div ref={containerRef} className="h-full w-full" />
 }

@@ -32,18 +32,31 @@
   --color-ink-200: #ccd0ce;
   --color-ink-50: #f4f2ec;
 
-  /* ACCENTS — each one owns a MEANING, and is only allowed where that
-     meaning applies. One accent flooding every surface is what made the
-     previous pass read as templated; the fix is not a quieter yellow but a
-     yellow that means something.
-       trail (amber/copper) — DENSITY and magnitude. The heatmap ramp, and
-         the single headline number a screen is built around. Nothing else.
-       signal (jade/mint)   — PLACES and recognition: map pins, place names,
-         anything the clustering engine identified.
-       dusk (periwinkle)    — TIME and rhythm: the hour and weekday charts,
-         temporal copy.
-       bloom (rose)         — the third categorical slot, for charts that
-         genuinely need a third distinguishable series. */
+  /* ACCENTS — TWO, not four.
+     The previous pass ran four (amber, jade, periwinkle, rose), one per
+     screen, which is why consecutive screens read as different products: a
+     colour that changes every section isn't a system, it's decoration. Two
+     survive, and each owns a MEANING that holds across every screen:
+
+       trail (amber) — MAGNITUDE. Any "how much": the headline number a
+         screen is built around, the hot end of the heat ramp, the
+         highlighted column in a chart, the primary action. If a reader asks
+         "which is the big number here", amber answers it, every time.
+
+       signal (jade) — PLACE IDENTITY. Anything the clustering engine
+         recognised as somewhere: map pins, place and district names, the
+         section eyebrows that label where they are in the story.
+
+     Periwinkle is gone deliberately. A violet-blue accent on a dark surface
+     is the single most over-used pairing in generated dashboards — it
+     arrives by default rather than by decision, and it was carrying "time"
+     here, which amber already covers as a magnitude. Rose is gone because
+     nothing needed a third series once the rainbow district palette was
+     replaced by a single-hue magnitude scale.
+
+     Amber against jade is also the old cartographic pairing — warm relief
+     over cool hydrography — which is the right register for a product whose
+     whole subject is a map. */
   --color-trail-600: #b45309;
   --color-trail-500: #d97706;
   --color-trail-400: #f59e0b;
@@ -54,10 +67,23 @@
   --color-signal-400: #5fdcb9;
   --color-signal-300: #8fe9d1;
 
-  --color-dusk-500: #7c83f0;
-  --color-dusk-400: #a3a8f7;
+  /* TYPE SCALE. A 1.25 (major third) geometric progression off a 16px body,
+     rounded to whole pixels, instead of a size invented per screen. Adjacent
+     steps are close enough to sit together without clashing and far enough
+     apart that a level change is unmistakable — which is what lets hierarchy
+     be carried by size and weight rather than by rules, tints and boxes.
 
-  --color-bloom-500: #f77e8e;
+     Fluid steps use clamp() so the top of the scale collapses gracefully on
+     a phone without a separate mobile scale to keep in sync. */
+  --text-micro: 0.625rem;   /* 10px — pin chips, densest labels */
+  --text-caption: 0.8125rem;/* 13px — eyebrows, axis ticks, meta */
+  --text-body: 1rem;        /* 16px */
+  --text-body-lg: 1.25rem;  /* 20px — lead paragraphs */
+  --text-title-sm: 1.5625rem; /* 25px */
+  --text-title: 1.9375rem;  /* 31px */
+  --text-title-lg: clamp(2rem, 4vw, 3.0625rem);   /* → 49px */
+  --text-display: clamp(2.75rem, 7vw, 4.75rem);   /* → 76px */
+  --text-hero: clamp(4rem, 15vw, 9.5rem);         /* the one number per screen */
 }
 
 html {
@@ -106,6 +132,65 @@ body {
 
 #root {
   min-height: 100svh;
+}
+
+/* CAPTION / LABEL role, as one class instead of an ad-hoc
+   `font-mono text-[10px] uppercase tracking-[0.2em]` re-typed per screen.
+   Two things are corrected here versus that pattern:
+     - Tracking drops from 0.20em to 0.12em. Caps at 0.2em open up so far
+       that a short Ukrainian label stops reading as a word and starts
+       reading as separated letters; the wide setting only works at display
+       sizes, not at 13px.
+     - Weight goes to 500. At 13px on a dark surface, regular-weight mono
+       loses its stems to the background — the extra weight is what buys
+       back legibility, which is the trade the wide tracking was failing to
+       make. */
+.text-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+/* Same role, for genuinely tight spots (map pin chips, dense meta rows). */
+.text-label-micro {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+/* HERO NUMERAL. The tight tracking that large Fraunces figures need, applied
+   in one place so every headline number on every screen is set identically —
+   the alternative was `tracking-tighter` repeated with a different size each
+   time, which is how the same figure ended up looking different per screen.
+   `font-feature-settings` locks lining, tabular figures so a counting
+   animation doesn't reflow as digits change width. */
+.numeral-hero,
+.numeral-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.82;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* Exactly two sizes, because there are exactly two jobs: the single number a
+   whole screen exists to deliver, and a number that leads a block within a
+   screen. Previously every screen invented its own clamp() — 13vw here,
+   15vw there, 10vw in a card, with three different line-heights — so the
+   "same" hero figure was a different size and sat on a different baseline on
+   every screen, which is what made the set feel unrelated. */
+.numeral-hero {
+  font-size: var(--text-hero);
+}
+
+.numeral-display {
+  font-size: var(--text-display);
 }
 
 /* DEPTH, layer 2 of 2: film grain. A single tiling SVG turbulence patch,
@@ -251,20 +336,31 @@ body::after {
   animation: trail-pin-ring 3.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
+/* The chip has to stay readable over the BRIGHTEST part of the heat ramp —
+   which is exactly where the top-ranked pins sit, since a pin marks a place
+   you spent time and that is what makes the heat hot underneath it. A
+   translucent chip inherits whatever is behind it, so over a hot core the
+   label washed out precisely where it mattered most.
+   The fix is to stop depending on the backdrop: a near-opaque fill, a dark
+   outer ring that separates the chip from any bright pixel around it, and a
+   text shadow so the glyphs survive even if the fill is overdrawn. */
 .trail-pin__label {
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  padding: 2px 7px;
+  padding: 2.5px 7px;
   border-radius: 7px;
-  border: 1px solid var(--color-ink-700);
-  background: rgba(11, 13, 14, 0.72);
-  backdrop-filter: blur(7px);
+  border: 1px solid var(--color-ink-600);
+  background: rgba(8, 10, 11, 0.94);
   font-family: var(--font-mono);
   font-size: 10.5px;
+  font-weight: 500;
   letter-spacing: 0.02em;
-  color: var(--color-ink-200);
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+  color: var(--color-ink-50);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  box-shadow:
+    0 0 0 1.5px rgba(8, 10, 11, 0.75),
+    0 3px 12px rgba(0, 0, 0, 0.55);
 }
 
 .trail-pin__rank {

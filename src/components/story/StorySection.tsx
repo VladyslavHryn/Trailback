@@ -73,7 +73,7 @@ export function StorySection({
             <p className="font-mono text-xs text-ink-600 md:text-sm">{index}</p>
           )}
           {eyebrow && (
-            <p className="mt-2 font-mono text-[10px] uppercase leading-relaxed tracking-[0.2em] text-signal-400 md:text-[11px]">
+            <p className="mt-2 text-label text-signal-400">
               {eyebrow}
             </p>
           )}

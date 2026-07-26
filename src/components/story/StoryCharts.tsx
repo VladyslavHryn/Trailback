@@ -7,6 +7,32 @@ import { cn } from '../../lib/cn'
 // itself carried by direct labels rather than a legend, since each of these
 // only ever shows a single measure at a time.
 
+/**
+ * Which accent a chart speaks in. Charts don't get to pick a colour for
+ * looks — the accent says what KIND of quantity is on screen, so the reader
+ * builds one mapping and keeps it across the whole story: amber means
+ * density/magnitude, jade means places, periwinkle means time.
+ */
+export type ChartAccent = 'heat' | 'place' | 'time'
+
+const ACCENT_TOKENS: Record<ChartAccent, { bar: string; text: string; glow: string }> = {
+  heat: {
+    bar: 'var(--color-trail-400)',
+    text: 'text-trail-300',
+    glow: '0 0 26px rgba(245, 158, 11, 0.5)',
+  },
+  place: {
+    bar: 'var(--color-signal-500)',
+    text: 'text-signal-300',
+    glow: '0 0 26px rgba(37, 199, 156, 0.45)',
+  },
+  time: {
+    bar: 'var(--color-dusk-500)',
+    text: 'text-dusk-400',
+    glow: '0 0 26px rgba(124, 131, 240, 0.5)',
+  },
+}
+
 type ColumnChartProps = {
   values: number[]
   labels: string[]
@@ -14,6 +40,7 @@ type ColumnChartProps = {
   /** Render only every Nth label, so 24 hour ticks don't collide. */
   labelStep?: number
   ariaLabel: string
+  accent?: ChartAccent
 }
 
 /**
@@ -32,9 +59,11 @@ export function ColumnChart({
   highlightIndex,
   labelStep = 1,
   ariaLabel,
+  accent = 'time',
 }: ColumnChartProps) {
   const prefersReducedMotion = useReducedMotion()
   const max = Math.max(...values, 1)
+  const tokens = ACCENT_TOKENS[accent]
 
   return (
     <div role="img" aria-label={ariaLabel}>
@@ -54,8 +83,8 @@ export function ColumnChart({
                   'group-hover/chart:brightness-[0.65] hover:!brightness-125',
                 )}
                 style={{
-                  background: isPeak ? 'var(--color-trail-400)' : 'var(--color-ink-700)',
-                  boxShadow: isPeak ? '0 0 28px rgba(245, 158, 11, 0.55)' : undefined,
+                  background: isPeak ? tokens.bar : 'var(--color-ink-700)',
+                  boxShadow: isPeak ? tokens.glow : undefined,
                 }}
                 initial={prefersReducedMotion ? false : { height: 0 }}
                 whileInView={{ height: `${Math.max(heightPct, 1.5)}%` }}
@@ -78,7 +107,7 @@ export function ColumnChart({
             <span
               className={cn(
                 'font-mono text-[10px] md:text-xs',
-                i === highlightIndex ? 'text-trail-300' : 'text-ink-400',
+                i === highlightIndex ? tokens.text : 'text-ink-400',
               )}
             >
               {i % labelStep === 0 || i === highlightIndex ? label : ''}
@@ -106,6 +135,7 @@ type BreakdownBarsProps = {
   rows: BreakdownRow[]
   /** Shown at the right of each row above the bar, e.g. a percentage. */
   showPercent?: boolean
+  accent?: ChartAccent
 }
 
 /**
@@ -113,22 +143,33 @@ type BreakdownBarsProps = {
  * for districts and categories, which are both "share of a whole" reads
  * where the row label needs full-width room for a real place name.
  */
-export function BreakdownBars({ rows, showPercent = false }: BreakdownBarsProps) {
+export function BreakdownBars({
+  rows,
+  showPercent = false,
+  accent = 'place',
+}: BreakdownBarsProps) {
   const prefersReducedMotion = useReducedMotion()
+  const tokens = ACCENT_TOKENS[accent]
 
   return (
     <ul className="flex flex-col gap-6">
       {rows.map((row, i) => {
-        const color = row.color ?? 'var(--color-trail-500)'
+        // A row's own colour wins when it has one — the district rows carry
+        // the same per-district hue as their map pins, which is the whole
+        // point of that palette. The accent is the fallback.
+        const color = row.color ?? tokens.bar
         return (
           <li key={row.key} className="group">
             <div className="flex items-baseline justify-between gap-4">
-              <span className="font-display text-lg font-medium text-ink-50 transition-colors duration-300 group-hover:text-trail-300 md:text-2xl">
+              <span className="font-display text-lg font-medium text-ink-50 transition-colors duration-300 group-hover:text-ink-200 md:text-2xl">
                 {row.label}
               </span>
               <span className="shrink-0 text-right">
                 {showPercent && (
-                  <span className="font-display text-xl font-semibold text-trail-300 md:text-3xl">
+                  <span
+                    className="font-display text-xl font-semibold md:text-3xl"
+                    style={{ color }}
+                  >
                     <NumberTicker
                       value={row.ratio * 100}
                       suffix="%"

@@ -43,7 +43,7 @@ export function TopPlacesSection({ places, spanDays }: TopPlacesSectionProps) {
                 <SpotlightCard
                   className={cn(isFirst && 'border-trail-500/30')}
                   glow={
-                    isFirst ? 'rgba(245, 158, 11, 0.16)' : 'rgba(34, 211, 238, 0.10)'
+                    isFirst ? 'rgba(245, 158, 11, 0.16)' : 'rgba(37, 199, 156, 0.11)'
                   }
                 >
                   {isFirst && <BorderBeam duration={9} />}

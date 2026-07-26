@@ -1,37 +1,63 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Space Grotesk", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* TYPE. Three roles, deliberately different in kind rather than three
+     weights of the same voice:
+       display — Fraunces, a high-contrast old-style serif. Its SOFT/WONK
+                 axes (see index.html) give it a hand-cut quality that a
+                 geometric grotesk cannot; it sets the "personal archive"
+                 register the product is about.
+       body    — Instrument Sans. Neutral and quiet on purpose: the display
+                 face is doing the talking, so this only has to be readable.
+       mono    — IBM Plex Mono for anything that is DATA (coordinates,
+                 counts, axis ticks, durations). Tabular figures matter more
+                 here than personality. */
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "Instrument Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  /* Deep-navy base rather than the previous warm near-black: the old dark
-     tones sat close in hue to the orange data accent, so data and
-     background muddied into each other. A cool, genuinely blue-black base
-     puts real hue distance between surface and accents, which is what
-     makes the numbers pop instead of smearing. */
-  --color-ink-950: #05080f;
-  --color-ink-900: #0a0f1a;
-  --color-ink-800: #111827;
-  --color-ink-700: #1e293b;
-  --color-ink-600: #334155;
-  --color-ink-400: #7c8ba5;
-  --color-ink-200: #cbd5e5;
-  --color-ink-50: #f1f6fd;
+  /* SURFACE. A graphite ramp — neither pure black (which reads as an
+     absence of design) nor the navy-black that every dark AI dashboard now
+     uses. The temperature deliberately shifts across the ramp: the deep
+     surfaces stay cool and recessive, while the text tones run WARM
+     (ink-50 is a paper white, not #fff). That mixed temperature is most of
+     what stops a dark UI looking synthetic — it mimics ink on stock rather
+     than pixels on a void. */
+  --color-ink-950: #0b0d0e;
+  --color-ink-900: #131719;
+  --color-ink-800: #1c2225;
+  --color-ink-700: #2a3135;
+  --color-ink-600: #424a50;
+  --color-ink-400: #889094;
+  --color-ink-200: #ccd0ce;
+  --color-ink-50: #f4f2ec;
 
-  /* Amber — carries magnitude (heat, headline numbers). High-chroma warm
-     against a cool base is the strongest contrast pairing available here. */
-  --color-trail-500: #f59e0b;
-  --color-trail-400: #fbbf24;
+  /* ACCENTS — each one owns a MEANING, and is only allowed where that
+     meaning applies. One accent flooding every surface is what made the
+     previous pass read as templated; the fix is not a quieter yellow but a
+     yellow that means something.
+       trail (amber/copper) — DENSITY and magnitude. The heatmap ramp, and
+         the single headline number a screen is built around. Nothing else.
+       signal (jade/mint)   — PLACES and recognition: map pins, place names,
+         anything the clustering engine identified.
+       dusk (periwinkle)    — TIME and rhythm: the hour and weekday charts,
+         temporal copy.
+       bloom (rose)         — the third categorical slot, for charts that
+         genuinely need a third distinguishable series. */
+  --color-trail-600: #b45309;
+  --color-trail-500: #d97706;
+  --color-trail-400: #f59e0b;
   --color-trail-300: #fcd34d;
 
-  /* Cyan — carries interaction and secondary data series. */
-  --color-signal-500: #22d3ee;
-  --color-signal-400: #67e8f9;
+  --color-signal-600: #0f9b76;
+  --color-signal-500: #25c79c;
+  --color-signal-400: #5fdcb9;
+  --color-signal-300: #8fe9d1;
 
-  /* Rose — third categorical slot, used only where a chart genuinely needs
-     a third distinguishable series. */
-  --color-bloom-500: #fb7185;
+  --color-dusk-500: #7c83f0;
+  --color-dusk-400: #a3a8f7;
+
+  --color-bloom-500: #f77e8e;
 }
 
 html {
@@ -47,52 +73,54 @@ html {
 
 body {
   margin: 0;
-  background: var(--color-ink-950);
   color: var(--color-ink-50);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+
+  /* DEPTH, layer 1 of 2: a gradient mesh instead of a flat fill. Three very
+     low-alpha radials, one per accent, placed well apart and pinned to the
+     viewport. Individually none of them is identifiable as a "glow"; what
+     they do collectively is stop any large dark area from being a single
+     flat value, which is the tell that makes flat-black sections look
+     cheap. `fixed` means this costs nothing on scroll — it never repaints. */
+  background-color: var(--color-ink-950);
+  background-image:
+    radial-gradient(58% 44% at 12% 8%, rgba(217, 119, 6, 0.09), transparent 68%),
+    radial-gradient(50% 40% at 88% 32%, rgba(37, 199, 156, 0.07), transparent 70%),
+    radial-gradient(62% 48% at 50% 96%, rgba(124, 131, 240, 0.07), transparent 72%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* Fraunces is a variable font with optical sizing — headline sizes want the
+   high-contrast, tighter-spaced end of the range, which `opsz` only reaches
+   if it's actually driven. WONK swaps in the alternate, canted glyph shapes
+   that give the face its character; left at 0 it reads like any other serif,
+   which would defeat the point of choosing it. */
+.font-display {
+  font-variation-settings:
+    "opsz" 100,
+    "SOFT" 28,
+    "WONK" 1;
 }
 
 #root {
   min-height: 100svh;
 }
 
-/* Leaflet chrome restyled to match the app's dark theme instead of the
-   library's default light UI controls. */
-.leaflet-container {
-  background: var(--color-ink-950);
-  font-family: var(--font-body);
-}
-
-.leaflet-control-attribution {
-  background: rgba(5, 8, 15, 0.8) !important;
-  color: var(--color-ink-400) !important;
-  backdrop-filter: blur(4px);
-}
-
-.leaflet-control-attribution a {
-  color: var(--color-ink-200) !important;
-}
-
-.leaflet-control-zoom a {
-  background: var(--color-ink-900) !important;
-  color: var(--color-ink-50) !important;
-  border-color: var(--color-ink-700) !important;
-}
-
-.leaflet-control-zoom a:hover {
-  background: var(--color-ink-800) !important;
-}
-
-.leaflet-tooltip {
-  background: var(--color-ink-900) !important;
-  border: 1px solid var(--color-ink-700) !important;
-  color: var(--color-ink-50) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-}
-
-.leaflet-tooltip-top:before {
-  border-top-color: var(--color-ink-700) !important;
+/* DEPTH, layer 2 of 2: film grain. A single tiling SVG turbulence patch,
+   held at very low opacity above everything. It breaks up the smooth
+   gradients above into something that reads as a surface with tooth, and
+   it also hides the banding that large low-alpha radials produce on 8-bit
+   displays. `pointer-events: none` keeps it entirely non-interactive. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.032;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* Confines a child to a 1px ring at the element's edge — the "border
@@ -114,30 +142,182 @@ body {
   mask-composite: exclude;
 }
 
-/* Glowing pulse marker (divIcon), used instead of Leaflet's flat default pin. */
+/* ── Map ─────────────────────────────────────────────────────────────── */
+
+.leaflet-container {
+  background: var(--color-ink-950);
+  font-family: var(--font-body);
+}
+
+/* The basemap ships as two layers (see MapView): unlabelled tiles, and
+   labels on their own pane. Holding the labels well back — desaturated,
+   dimmed, and UNDER the heat layer — is what turns them from clutter
+   ("Kotsiubynske", "Irpin" shouting across the view) into faint orientation
+   you read only when you look for it. */
+.trail-labels-pane {
+  opacity: 0.34;
+  filter: grayscale(1) contrast(0.8);
+}
+
+.leaflet-control-attribution {
+  background: rgba(11, 13, 14, 0.82) !important;
+  color: var(--color-ink-400) !important;
+  font-size: 10px !important;
+  backdrop-filter: blur(6px);
+}
+
+.leaflet-control-attribution a {
+  color: var(--color-ink-200) !important;
+}
+
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
+}
+
+.leaflet-control-zoom a {
+  background: rgba(19, 23, 25, 0.9) !important;
+  color: var(--color-ink-200) !important;
+  border-color: var(--color-ink-700) !important;
+  backdrop-filter: blur(6px);
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--color-ink-800) !important;
+  color: var(--color-ink-50) !important;
+}
+
+.leaflet-tooltip {
+  background: rgba(19, 23, 25, 0.94) !important;
+  border: 1px solid var(--color-ink-700) !important;
+  color: var(--color-ink-50) !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.leaflet-tooltip-top:before {
+  border-top-color: var(--color-ink-700) !important;
+}
+
+/* ── Place pin ───────────────────────────────────────────────────────── */
+
+/* A pin, not a marker-with-a-number-in-it. The location itself is a small
+   luminous dot — precise, the size of the thing it's actually claiming to
+   mark — and the rank and name sit BESIDE it on a quiet glass chip. Putting
+   the number inside a circle forces the circle wide enough to hold type,
+   which is why the old markers read as generic UI dropped onto a map
+   instead of as cartography.
+   The icon root is anchored at [0,0] with a zero-size box, so the transform
+   below is what centres the dot exactly on the coordinate while the label
+   flows off to the right. */
+.trail-pin {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transform: translate(-5px, -50%);
+  white-space: nowrap;
+}
+
+.trail-pin__dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 9999px;
+  background: var(--pin);
+  /* Three stacked shadows: a dark keyline so the dot stays legible on a
+     bright heat core, then two glows at different radii — a tight one for
+     intensity and a wide soft one for bloom. A single shadow reads as a
+     flat halo. */
+  box-shadow:
+    0 0 0 1.5px rgba(11, 13, 14, 0.85),
+    0 0 7px var(--pin),
+    0 0 18px color-mix(in srgb, var(--pin) 55%, transparent);
+}
+
+/* One slow outward ring, so a pin reads as a live signal rather than a
+   sticker. Deliberately subtle and long-period: eight of these pulsing in
+   sync would be noise. */
+.trail-pin__dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  border: 1px solid var(--pin);
+  opacity: 0;
+  animation: trail-pin-ring 3.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.trail-pin__label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 7px;
+  border-radius: 7px;
+  border: 1px solid var(--color-ink-700);
+  background: rgba(11, 13, 14, 0.72);
+  backdrop-filter: blur(7px);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--color-ink-200);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+}
+
+.trail-pin__rank {
+  color: var(--pin);
+  font-weight: 500;
+}
+
+@keyframes trail-pin-ring {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trail-pin__dot::after {
+    animation: none;
+  }
+}
+
+/* ── Demo route (landing hero + "demo map" shortcut) ─────────────────── */
+
 .trail-marker-pulse {
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .trail-marker-pulse::before {
-  content: '';
+  content: "";
   position: absolute;
-  inset: -10px;
+  inset: -9px;
   border-radius: 9999px;
-  background: rgba(245, 158, 11, 0.35);
-  animation: trail-pulse 2.4s ease-out infinite;
+  background: rgba(37, 199, 156, 0.3);
+  animation: trail-pulse 2.6s ease-out infinite;
 }
 
 .trail-marker-pulse::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: 9999px;
-  background: var(--color-trail-400);
-  border: 2px solid var(--color-ink-900);
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
+  background: var(--color-signal-500);
+  border: 2px solid var(--color-ink-950);
+  box-shadow: 0 0 10px rgba(37, 199, 156, 0.75);
 }
 
 @keyframes trail-pulse {
@@ -151,7 +331,13 @@ body {
   }
 }
 
-/* Slow-marching dashes give the route a sense of motion/direction. */
+@media (prefers-reduced-motion: reduce) {
+  .trail-marker-pulse::before {
+    animation: none;
+  }
+}
+
+/* Slow-marching dashes give the route a sense of direction. */
 .trail-route-line {
   stroke-dasharray: 10 8;
   animation: trail-dash 18s linear infinite;
@@ -161,27 +347,14 @@ body {
   filter: blur(6px);
 }
 
-/* Ranked "top place" marker — deliberately teal (signal color) rather than
-   the heatmap's orange, so a real clustering result reads as distinct from
-   the density blob it sits on top of. */
-.trail-place-marker {
-  display: flex;
-  width: 24px;
-  height: 24px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 9999px;
-  background: var(--color-ink-900);
-  border: 2px solid var(--color-signal-400);
-  color: var(--color-signal-400);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  box-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
-}
-
 @keyframes trail-dash {
   to {
     stroke-dashoffset: -600;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trail-route-line {
+    animation: none;
   }
 }

@@ -16,16 +16,18 @@ export function HeroSection({ pointCount, spanDays, placeCount }: HeroSectionPro
 
   return (
     <section className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden px-6 text-center">
-      {/* Two soft, widely-separated glows rather than a single centred one —
-          an off-centre light source reads as depth, a centred one reads as
-          a vignette. */}
+      {/* Three soft, widely-separated glows rather than a single centred one
+          — an off-centre light source reads as depth, a centred one reads as
+          a vignette. One per accent, so the hero states the product's whole
+          colour vocabulary before the story starts using it. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            'radial-gradient(60% 50% at 20% 15%, rgba(245, 158, 11, 0.13), transparent 70%),' +
-            'radial-gradient(55% 45% at 85% 80%, rgba(34, 211, 238, 0.10), transparent 70%)',
+            'radial-gradient(58% 48% at 18% 12%, rgba(217, 119, 6, 0.15), transparent 70%),' +
+            'radial-gradient(52% 42% at 86% 74%, rgba(37, 199, 156, 0.11), transparent 70%),' +
+            'radial-gradient(46% 40% at 62% 22%, rgba(124, 131, 240, 0.09), transparent 72%)',
         }}
       />
 

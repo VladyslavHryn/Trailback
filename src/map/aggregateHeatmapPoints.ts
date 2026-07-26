@@ -24,6 +24,16 @@ export interface HeatmapAggregation {
   points: HeatPoint[]
   /** Highest per-cell intensity, useful as the heat layer's `max` option. */
   maxIntensity: number
+  /**
+   * Side of one grid cell, in degrees of latitude.
+   *
+   * The renderer needs this, not just the points: leaflet.heat's radius is
+   * in SCREEN PIXELS while this spacing is fixed in degrees, so the ratio
+   * between them — how much neighbouring blobs overlap — changes with every
+   * zoom level. Left unmanaged, that ratio is what turns a heatmap into a
+   * solid stroke (see the radius calculation in MapView).
+   */
+  cellSizeDeg: number
 }
 
 // The grid resolution adapts to how much ground the history actually covers
@@ -41,7 +51,7 @@ const MAX_HEAT_POINTS = 50_000
 
 export function aggregateHeatmapPoints(points: ParsedPoints): HeatmapAggregation {
   const count = points.lat.length
-  if (count === 0) return { points: [], maxIntensity: 0 }
+  if (count === 0) return { points: [], maxIntensity: 0, cellSizeDeg: 0 }
 
   let minLat = Infinity
   let maxLat = -Infinity
@@ -100,5 +110,5 @@ export function aggregateHeatmapPoints(points: ParsedPoints): HeatmapAggregation
     if (intensity > maxIntensity) maxIntensity = intensity
   }
 
-  return { points: heatPoints, maxIntensity }
+  return { points: heatPoints, maxIntensity, cellSizeDeg: cellSize }
 }

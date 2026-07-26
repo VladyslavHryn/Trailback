@@ -361,16 +361,18 @@ function HeroDemo() {
     const latLngs = KYIV_ROUTE.map((p) => [p.lat, p.lng] as [number, number])
     map.fitBounds(L.latLngBounds(latLngs), { padding: [28, 28] })
 
+    // Jade, matching MapView's demo route — a path between places, which is
+    // the "place" accent's job; amber stays reserved for density.
     glowLineRef.current = L.polyline(latLngs, {
-      color: '#f59e0b',
+      color: '#25c79c',
       weight: 8,
       opacity: 0,
       className: 'trail-route-glow',
     }).addTo(map)
 
     lineRef.current = L.polyline(latLngs, {
-      color: '#fbbf24',
-      weight: 3,
+      color: '#5fdcb9',
+      weight: 2.5,
       opacity: 0,
       lineCap: 'round',
       className: 'trail-route-line',
@@ -531,14 +533,14 @@ type Dot = {
 }
 
 const AMBIENT_DOTS: Dot[] = [
-  { id: 1, top: 18, left: 12, size: 5, duration: 9, delay: 0, color: '#f59e0b' },
-  { id: 2, top: 30, left: 82, size: 4, duration: 11, delay: 1.2, color: '#22d3ee' },
-  { id: 3, top: 68, left: 20, size: 3.5, duration: 8, delay: 0.6, color: '#f59e0b' },
-  { id: 4, top: 76, left: 70, size: 5, duration: 12, delay: 2, color: '#22d3ee' },
-  { id: 5, top: 10, left: 55, size: 3, duration: 10, delay: 1.6, color: '#f59e0b' },
-  { id: 6, top: 50, left: 90, size: 4, duration: 9.5, delay: 0.4, color: '#22d3ee' },
-  { id: 7, top: 85, left: 40, size: 3.5, duration: 13, delay: 2.4, color: '#f59e0b' },
-  { id: 8, top: 42, left: 6, size: 4.5, duration: 10.5, delay: 0.9, color: '#22d3ee' },
+  { id: 1, top: 18, left: 12, size: 5, duration: 9, delay: 0, color: '#d97706' },
+  { id: 2, top: 30, left: 82, size: 4, duration: 11, delay: 1.2, color: '#25c79c' },
+  { id: 3, top: 68, left: 20, size: 3.5, duration: 8, delay: 0.6, color: '#7c83f0' },
+  { id: 4, top: 76, left: 70, size: 5, duration: 12, delay: 2, color: '#25c79c' },
+  { id: 5, top: 10, left: 55, size: 3, duration: 10, delay: 1.6, color: '#d97706' },
+  { id: 6, top: 50, left: 90, size: 4, duration: 9.5, delay: 0.4, color: '#7c83f0' },
+  { id: 7, top: 85, left: 40, size: 3.5, duration: 13, delay: 2.4, color: '#25c79c' },
+  { id: 8, top: 42, left: 6, size: 4.5, duration: 10.5, delay: 0.9, color: '#d97706' },
 ]
 
 function AmbientBackground() {

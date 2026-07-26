@@ -24,7 +24,9 @@ type SpotlightCardProps = {
 export function SpotlightCard({
   children,
   className,
-  glow = 'rgba(245, 158, 11, 0.14)',
+  // Jade by default, not amber: amber is the density accent and only the
+  // one card actually carrying a magnitude should reach for it.
+  glow = 'rgba(37, 199, 156, 0.13)',
 }: SpotlightCardProps) {
   const ref = useRef<HTMLDivElement>(null)
   const prefersReducedMotion = useReducedMotion()

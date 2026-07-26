@@ -40,7 +40,7 @@ function StatCard({
   return (
     <SpotlightCard
       className={cn('h-full', className)}
-      glow={featured ? 'rgba(245, 158, 11, 0.18)' : 'rgba(34, 211, 238, 0.12)'}
+      glow={featured ? 'rgba(245, 158, 11, 0.18)' : 'rgba(37, 199, 156, 0.12)'}
     >
       {featured && <BorderBeam duration={8} />}
 

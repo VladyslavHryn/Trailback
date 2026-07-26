@@ -70,14 +70,14 @@ export function summarizeCategories(
 // critical chart, so exact colorblind-safety validation wasn't run on it
 // the way the Step 3 heatmap ramp was.
 const DISTRICT_COLOR_PALETTE = [
-  '#f59e0b',
-  '#22d3ee',
-  '#fb7185',
-  '#a78bfa',
-  '#4ade80',
-  '#fcd34d',
-  '#38bdf8',
-  '#f472b6',
+  '#25c79c', // jade — the product's "place" accent, so the first district
+  '#a3a8f7', // periwinkle
+  '#f77e8e', // rose
+  '#f59e0b', // amber
+  '#5fdcb9', // pale jade
+  '#7c83f0', // deep periwinkle
+  '#fcd34d', // pale amber
+  '#f0a5c0', // mauve-rose
 ]
 
 /** Assigns each distinct district name a stable color, in first-seen order. */

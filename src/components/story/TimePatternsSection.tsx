@@ -28,9 +28,9 @@ export function TimePatternsSection({ timePatterns }: TimePatternsSectionProps) 
       eyebrow="Ритм твого життя"
       title={
         <>
-          Твій пік — <span className="text-trail-400">{peakHour}:00</span>,
+          Твій пік — <span className="text-dusk-400">{peakHour}:00</span>,
           <br />
-          найактивніший день — <span className="text-trail-400">{peakDay}</span>
+          найактивніший день — <span className="text-dusk-400">{peakDay}</span>
         </>
       }
     >
@@ -47,6 +47,7 @@ export function TimePatternsSection({ timePatterns }: TimePatternsSectionProps) 
             highlightIndex={timePatterns.busiestHour}
             labelStep={3}
             ariaLabel="Активність за годинами доби"
+            accent="time"
           />
         </div>
 
@@ -61,6 +62,7 @@ export function TimePatternsSection({ timePatterns }: TimePatternsSectionProps) 
             labels={WEEKDAY_LABELS}
             highlightIndex={timePatterns.busiestWeekdayIndex}
             ariaLabel="Активність за днями тижня"
+            accent="time"
           />
         </div>
       </div>

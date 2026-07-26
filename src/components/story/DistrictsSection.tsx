@@ -41,7 +41,7 @@ export function DistrictsSection({ districts, geocodingPending }: DistrictsSecti
           <>
             Більшість життя минула тут:
             <br />
-            <span className="text-trail-400">{top.district}</span>
+            <span className="text-signal-400">{top.district}</span>
           </>
         ) : (
           'Твої райони'

@@ -34,12 +34,12 @@ export function CategoriesSection({ categories }: CategoriesSectionProps) {
       title={
         <>
           Найбільше часу —<br />
-          це <span className="text-trail-400">{top.category}</span>
+          це <span className="text-signal-400">{top.category}</span>
         </>
       }
       subtitle={`Разом ${formatDuration(top.totalDurationSec)} у цій категорії.`}
     >
-      <BreakdownBars rows={rows} />
+      <BreakdownBars rows={rows} accent="place" />
 
       <Reveal index={rows.length}>
         <p className="mt-10 text-xs leading-relaxed text-ink-400">

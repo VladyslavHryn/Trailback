@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
 import '../map/registerLeafletHeat'
 import type { ParsedPoints } from '../parsing/types'
 import type { DisplayPlace } from '../analytics/placeInsights'
@@ -88,8 +87,25 @@ export const LABEL_TILE_URL =
 export const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 
+// Standard OSM tiles, used only if CARTO can't be reached. One CDN is a
+// single point of failure for the entire map, and its failure mode is the
+// worst one available: tiles simply never arrive, leaving an empty coloured
+// rectangle with no error and nothing to act on. OSM's own tile servers are
+// a different origin entirely, so a block or outage on one rarely takes the
+// other with it.
+//
+// These tiles are light, which would wreck a dark UI, so the fallback pane
+// is inverted in CSS (`.trail-fallback-tiles`) — the standard trick for
+// getting a dark basemap out of light raster tiles.
+const FALLBACK_TILE_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const FALLBACK_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+
 /** Pane for the label tiles: above the basemap, below the heat/marker data. */
 const LABELS_PANE = 'trailLabels'
+/** Pane for the fallback basemap, so it can be inverted without touching
+ * anything drawn on top of it. */
+const FALLBACK_PANE = 'trailFallbackTiles'
 
 // Shared with the landing page's hero demo so the "preview" and the real
 // map use the exact same marker style instead of two divergent look&feels.
@@ -146,7 +162,7 @@ export function MapView({
 
     const map = L.map(containerRef.current, { zoomControl: true, scrollWheelZoom })
 
-    L.tileLayer(TILE_URL, {
+    const baseTiles = L.tileLayer(TILE_URL, {
       attribution: TILE_ATTRIBUTION,
       subdomains: 'abcd',
       maxZoom: 20,
@@ -158,11 +174,34 @@ export function MapView({
     const labelsPane = map.createPane(LABELS_PANE)
     labelsPane.style.zIndex = '250'
     labelsPane.classList.add('trail-labels-pane')
-    L.tileLayer(LABEL_TILE_URL, {
+    const labelTiles = L.tileLayer(LABEL_TILE_URL, {
       subdomains: 'abcd',
       maxZoom: 20,
       pane: LABELS_PANE,
     }).addTo(map)
+
+    // Swap to the fallback source the first time a base tile fails to load.
+    // Guarded so a handful of failing tiles can't tear the layer down
+    // repeatedly, and the labels layer goes with it — its tiles come from
+    // the same host, so if the base is unreachable the labels are too, and
+    // leaving it would keep retrying requests that can't succeed.
+    let usedFallback = false
+    baseTiles.on('tileerror', () => {
+      if (usedFallback) return
+      usedFallback = true
+
+      map.removeLayer(baseTiles)
+      map.removeLayer(labelTiles)
+
+      const fallbackPane = map.createPane(FALLBACK_PANE)
+      fallbackPane.style.zIndex = '200'
+      fallbackPane.classList.add('trail-fallback-tiles')
+      L.tileLayer(FALLBACK_TILE_URL, {
+        attribution: FALLBACK_ATTRIBUTION,
+        maxZoom: 19,
+        pane: FALLBACK_PANE,
+      }).addTo(map)
+    })
 
     mapRef.current = map
 

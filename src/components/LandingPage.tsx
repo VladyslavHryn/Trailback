@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
 import {
   AlertTriangle,
   FileArchive,

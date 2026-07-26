@@ -243,6 +243,15 @@ body::after {
    dimmed, and UNDER the heat layer — is what turns them from clutter
    ("Kotsiubynske", "Irpin" shouting across the view) into faint orientation
    you read only when you look for it. */
+/* Fallback basemap (plain OSM) turned dark. Inverting flips the light tiles
+   to dark but also flips every hue to its opposite, so the hue-rotate puts
+   them back where they started — greens stay green rather than becoming
+   magenta. Applied to the pane, not the map, so the heatmap and pins drawn
+   above are untouched. */
+.trail-fallback-tiles {
+  filter: invert(1) hue-rotate(180deg) brightness(0.82) contrast(0.9) saturate(0.7);
+}
+
 .trail-labels-pane {
   opacity: 0.34;
   filter: grayscale(1) contrast(0.8);

@@ -83,7 +83,11 @@
   --text-title: 1.9375rem;  /* 31px */
   --text-title-lg: clamp(2rem, 4vw, 3.0625rem);   /* → 49px */
   --text-display: clamp(2.75rem, 7vw, 4.75rem);   /* → 76px */
-  --text-hero: clamp(4rem, 15vw, 9.5rem);         /* the one number per screen */
+  /* The one number per screen. The ceiling is deliberately high: capped at
+     9.5rem it stopped growing around 1000px wide, so on a 1920px display the
+     product's biggest statement sat as a small island in a large empty
+     screen — which reads as a layout fault rather than as composure. */
+  --text-hero: clamp(4rem, 13vw, 13rem);
 }
 
 html {

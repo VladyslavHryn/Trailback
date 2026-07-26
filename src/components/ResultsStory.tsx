@@ -123,17 +123,25 @@ export function ResultsStory({
 
   return (
     <div className="relative bg-ink-950">
-      <header className="fixed inset-x-0 top-0 z-[1000] flex items-center justify-between px-6 py-5 md:px-10">
-        <div className="flex items-center gap-2 font-display text-sm font-semibold text-ink-50">
-          <Route className="h-4 w-4 text-trail-400" strokeWidth={2.2} />
-          Trailback
+      {/* The bar spans the viewport (so its backdrop does too) but its
+          CONTENTS sit in the same max-width container as every section, so
+          the wordmark starts on the same left axis as the story rail beneath
+          it. Pinned to the window edge instead, it drifted ~380px away from
+          the content on a wide screen and read as a stray element rather
+          than the start of the page. */}
+      <header className="fixed inset-x-0 top-0 z-[1000]">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6 md:px-10">
+          <div className="flex items-center gap-2.5 font-display text-lg font-semibold tracking-tight text-ink-50">
+            <Route className="h-5 w-5 text-trail-400" strokeWidth={2.2} />
+            Trailback
+          </div>
+          {geocoding.status === 'running' && (
+            <span className="flex items-center gap-2 rounded-full border border-ink-800 bg-ink-900/80 px-3 py-1.5 font-mono text-[10px] text-ink-400 backdrop-blur-sm">
+              <Loader2 className="h-3 w-3 animate-spin text-trail-400" />
+              Розпізнаємо назви {geocoding.progress.completed}/{geocoding.progress.total}
+            </span>
+          )}
         </div>
-        {geocoding.status === 'running' && (
-          <span className="flex items-center gap-2 rounded-full border border-ink-800 bg-ink-900/80 px-3 py-1.5 font-mono text-[10px] text-ink-400 backdrop-blur-sm">
-            <Loader2 className="h-3 w-3 animate-spin text-trail-400" />
-            Розпізнаємо назви {geocoding.progress.completed}/{geocoding.progress.total}
-          </span>
-        )}
       </header>
 
       <main>

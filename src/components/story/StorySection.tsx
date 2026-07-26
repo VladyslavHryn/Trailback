@@ -63,7 +63,7 @@ export function StorySection({
     <section
       id={id}
       className={cn(
-        'relative mx-auto w-full max-w-6xl px-6 py-[14vh] md:px-10',
+        'relative mx-auto w-full max-w-7xl px-6 py-[14vh] md:px-10',
         className,
       )}
     >

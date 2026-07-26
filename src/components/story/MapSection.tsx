@@ -29,7 +29,7 @@ export function MapSection({ points, places }: MapSectionProps) {
           content column, rather than centred over the map — the map is the
           full-bleed element, so the type has to hold the alignment. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 px-6 pt-16 md:px-10 md:pt-20">
-        <div className="mx-auto grid w-full max-w-6xl md:grid-cols-[7rem_minmax(0,1fr)] md:gap-x-12 lg:grid-cols-[9rem_minmax(0,1fr)]">
+        <div className="mx-auto grid w-full max-w-7xl md:grid-cols-[7rem_minmax(0,1fr)] md:gap-x-12 lg:grid-cols-[9rem_minmax(0,1fr)]">
           <Reveal>
             <div>
               <p className="font-mono text-xs text-ink-600">02</p>

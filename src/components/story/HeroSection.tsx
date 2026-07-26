@@ -27,7 +27,7 @@ export function HeroSection({ pointCount, spanDays, placeCount }: HeroSectionPro
   const prefersReducedMotion = useReducedMotion()
 
   return (
-    <section className="relative flex min-h-svh flex-col justify-end overflow-hidden">
+    <section className="relative flex min-h-svh flex-col justify-center overflow-hidden">
       {/* Depth in layers rather than one flat fill: a wide warm wash anchored
           behind where the number actually sits (so the glow belongs to the
           content instead of floating as a decorative blob), a cooler counter-
@@ -57,7 +57,14 @@ export function HeroSection({ pointCount, spanDays, placeCount }: HeroSectionPro
           had to re-find the margin on screen two. The rail also lets the hero
           carry "01" and take its place in the numbered sequence rather than
           sitting outside it. */}
-      <div className="relative z-10 mx-auto grid w-full max-w-6xl gap-y-8 px-6 pb-[18vh] md:grid-cols-[7rem_minmax(0,1fr)] md:gap-x-12 md:px-10 lg:grid-cols-[9rem_minmax(0,1fr)]">
+      {/* Vertically centred, not bottom-anchored. Pinning the block to the
+          bottom left a ~530px void above it on a wide screen: with the number
+          capped in size, the composition was one small cluster of type sitting
+          under half a screen of nothing. Centring a LEFT-aligned, rail-offset
+          block keeps the asymmetry that gives the screen direction while
+          spending the height on both sides of the content instead of all of
+          it on one. The padding clears the fixed header and the scroll hint. */}
+      <div className="relative z-10 mx-auto grid w-full max-w-7xl gap-y-8 px-6 py-28 md:grid-cols-[7rem_minmax(0,1fr)] md:gap-x-12 md:px-10 lg:grid-cols-[9rem_minmax(0,1fr)]">
         <Reveal>
           <div>
             <p className="font-mono text-xs text-ink-600 md:text-sm">01</p>

@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
-import { Loader2, Route } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { CalendarX, Loader2, Route } from 'lucide-react'
 import type { ParsedPoints } from '../parsing/types'
 import type { AnalyticsState } from '../hooks/useAnalytics'
+import type { AnalyticsResult } from '../analytics/runAnalytics'
 import type { GeocodingState } from '../hooks/useGeocoding'
 import type { DisplayPlace } from '../analytics/placeInsights'
 import type { Place } from '../analytics/places'
@@ -14,6 +15,10 @@ import { DistrictsSection } from './story/DistrictsSection'
 import { TimePatternsSection } from './story/TimePatternsSection'
 import { CategoriesSection } from './story/CategoriesSection'
 import { OutroSection } from './story/OutroSection'
+import { TimeRangeFilter } from './story/TimeRangeFilter'
+import { describeRange, type AvailablePeriods, type RangeSelection } from '../analytics/timeRange'
+import type { MapLayer } from './MapView'
+import { cn } from '../lib/cn'
 
 // Below this, a "place" is somewhere you passed through rather than stayed.
 const MIN_MEANINGFUL_STAY_SEC = 15 * 60
@@ -27,6 +32,9 @@ type ResultsStoryProps = {
   analytics: AnalyticsState
   geocoding: GeocodingState
   displayPlaces?: DisplayPlace[]
+  periods: AvailablePeriods
+  range: RangeSelection
+  onRangeChange: (range: RangeSelection) => void
   onLoadAnother: () => void
 }
 
@@ -44,8 +52,24 @@ export function ResultsStory({
   analytics,
   geocoding,
   displayPlaces,
+  periods,
+  range,
+  onRangeChange,
   onLoadAnother,
 }: ResultsStoryProps) {
+  const [mapLayer, setMapLayer] = useState<MapLayer>('heat')
+
+  // The last result that finished, kept so a range change doesn't blank the
+  // screen. Without it, every uncached period replaces the whole story with
+  // a full-page spinner and then rebuilds it — the reader loses their scroll
+  // position and the page appears to reload on what should feel like a
+  // filter. Holding the previous numbers and dimming them instead keeps the
+  // change legible as an update to something already on screen.
+  const lastResultRef = useRef<AnalyticsResult | null>(null)
+  if (analytics.status === 'done') lastResultRef.current = analytics.result
+  const result = analytics.status === 'done' ? analytics.result : lastResultRef.current
+  const recomputing = analytics.status === 'running' && result !== null
+
   // The engine works on its own time-sorted copy, so the span is derived
   // here from the raw parsed points instead of assuming input order.
   const spanDays = useMemo(() => {
@@ -70,8 +94,8 @@ export function ResultsStory({
   )
 
   const allPlaces = useMemo(
-    () => (analytics.status === 'done' ? analytics.result.places : EMPTY_PLACES),
-    [analytics],
+    () => result?.places ?? EMPTY_PLACES,
+    [result],
   )
 
   // Clustering legitimately finds spots you only ever passed through — a
@@ -102,56 +126,114 @@ export function ResultsStory({
     return displayPlaces.filter((p) => keep.has(p.clusterId))
   }, [displayPlaces, places])
 
-  if (analytics.status === 'error') {
-    return (
-      <div className="flex min-h-svh items-center justify-center px-6 text-center">
-        <p className="max-w-md text-sm text-red-200">{analytics.message}</p>
-      </div>
-    )
-  }
-
-  if (analytics.status !== 'done') {
-    return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-4 px-6 text-center">
-        <Loader2 className="h-6 w-6 animate-spin text-trail-400" />
-        <p className="text-sm text-ink-200">Збираємо історію твого життя…</p>
-      </div>
-    )
-  }
-
-  const result = analytics.result
-
-  return (
-    <div className="relative bg-ink-950">
-      {/* The bar spans the viewport (so its backdrop does too) but its
-          CONTENTS sit in the same max-width container as every section, so
-          the wordmark starts on the same left axis as the story rail beneath
-          it. Pinned to the window edge instead, it drifted ~380px away from
-          the content on a wide screen and read as a stray element rather
-          than the start of the page. */}
-      <header className="fixed inset-x-0 top-0 z-[1000]">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6 md:px-10">
+  // The chrome is identical in every state, so it's built once here rather
+  // than repeated in each early return. Crucially the FILTER lives in it:
+  // if a period fails or is still computing, the reader has to be able to
+  // pick a different one without reloading the file.
+  const chrome = (
+    <header className="fixed inset-x-0 top-0 z-[1000] border-b border-ink-800/60 bg-ink-950/80 backdrop-blur-md">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-6 py-4 md:px-10">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5 font-display text-lg font-semibold tracking-tight text-ink-50">
             <Route className="h-5 w-5 text-trail-400" strokeWidth={2.2} />
             Trailback
           </div>
-          {geocoding.status === 'running' && (
-            <span className="flex items-center gap-2 rounded-full border border-ink-800 bg-ink-900/80 px-3 py-1.5 font-mono text-[10px] text-ink-400 backdrop-blur-sm">
-              <Loader2 className="h-3 w-3 animate-spin text-trail-400" />
-              Розпізнаємо назви {geocoding.progress.completed}/{geocoding.progress.total}
-            </span>
-          )}
-        </div>
-      </header>
 
-      <main>
+          <div className="flex items-center gap-3">
+            {recomputing && (
+              <span className="flex items-center gap-2 font-mono text-[10px] text-ink-400">
+                <Loader2 className="h-3 w-3 animate-spin text-trail-400" />
+                Перераховуємо
+              </span>
+            )}
+            {geocoding.status === 'running' && (
+              <span className="flex items-center gap-2 rounded-full border border-ink-800 bg-ink-900/80 px-3 py-1.5 font-mono text-[10px] text-ink-400">
+                <Loader2 className="h-3 w-3 animate-spin text-trail-400" />
+                Розпізнаємо назви {geocoding.progress.completed}/{geocoding.progress.total}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <TimeRangeFilter
+          periods={periods}
+          selection={range}
+          onChange={onRangeChange}
+          busy={recomputing}
+        />
+      </div>
+    </header>
+  )
+
+  if (analytics.status === 'error') {
+    return (
+      <div className="relative min-h-svh bg-ink-950">
+        {chrome}
+        <div className="flex min-h-svh items-center justify-center px-6 text-center">
+          <p className="max-w-md text-sm text-red-200">{analytics.message}</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Only on the very first run, when there is genuinely nothing to show yet.
+  if (!result) {
+    return (
+      <div className="relative min-h-svh bg-ink-950">
+        {chrome}
+        <div className="flex min-h-svh flex-col items-center justify-center gap-4 px-6 text-center">
+          <Loader2 className="h-6 w-6 animate-spin text-trail-400" />
+          <p className="text-sm text-ink-200">Збираємо історію твого життя…</p>
+        </div>
+      </div>
+    )
+  }
+
+  // A period can be listed (it has pings) yet hold nothing the engine can
+  // describe — a couple of stray points with no recurring place. Saying so
+  // beats rendering a story of zeroes.
+  if (result.pointCount === 0) {
+    return (
+      <div className="relative min-h-svh bg-ink-950">
+        {chrome}
+        <div className="flex min-h-svh flex-col items-center justify-center gap-4 px-6 text-center">
+          <CalendarX className="h-6 w-6 text-ink-400" />
+          <p className="max-w-sm text-sm text-ink-200">
+            За період «{describeRange(range)}» немає даних. Обери інший період
+            угорі.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative bg-ink-950">
+      {chrome}
+
+      {/* Dimming the whole story while a new period is computed keeps the
+          numbers on screen but marks them as stale, so nobody reads an old
+          figure as the answer for the period they just picked. */}
+      <main
+        className={cn(
+          'transition-opacity duration-300',
+          recomputing && 'pointer-events-none opacity-40',
+        )}
+      >
         <HeroSection
           pointCount={result.pointCount}
           spanDays={spanDays}
           placeCount={places.length}
+          rangeLabel={describeRange(range)}
+          isFullHistory={range.kind === 'all'}
         />
 
-        <MapSection points={points} places={significantDisplayPlaces} />
+        <MapSection
+          points={points}
+          places={significantDisplayPlaces}
+          layer={mapLayer}
+          onLayerChange={setMapLayer}
+        />
 
         {significantDisplayPlaces && (
           <TopPlacesSection places={significantDisplayPlaces} spanDays={spanDays} />

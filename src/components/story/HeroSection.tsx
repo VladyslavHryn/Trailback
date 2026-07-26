@@ -9,6 +9,12 @@ type HeroSectionProps = {
   pointCount: number
   spanDays: number
   placeCount: number
+  /** Human-readable period the figures cover, e.g. "2024 рік". */
+  rangeLabel: string
+  /** False once the reader filters to a year or month. The copy has to know:
+   * "your whole history, at last on one map" is the product's pitch, but it
+   * becomes a plain false statement the moment the view is one month. */
+  isFullHistory: boolean
 }
 
 /**
@@ -23,7 +29,13 @@ type HeroSectionProps = {
  * to be read. Two evenly-sized lines of text would say nothing about which
  * one matters.
  */
-export function HeroSection({ pointCount, spanDays, placeCount }: HeroSectionProps) {
+export function HeroSection({
+  pointCount,
+  spanDays,
+  placeCount,
+  rangeLabel,
+  isFullHistory,
+}: HeroSectionProps) {
   const prefersReducedMotion = useReducedMotion()
 
   return (
@@ -69,6 +81,12 @@ export function HeroSection({ pointCount, spanDays, placeCount }: HeroSectionPro
           <div>
             <p className="font-mono text-xs text-ink-600 md:text-sm">01</p>
             <p className="text-label mt-2 text-signal-400">Твоя геоісторія</p>
+            {/* Which period the number below is for. Without it the headline
+                figure is ambiguous the moment the filter is touched — 61 504
+                points reads as the whole history whether it is or not, and
+                the filter that caused the change is up in the header, out of
+                view by the time the reader is looking at the number. */}
+            <p className="mt-3 font-mono text-[10px] text-ink-400">{rangeLabel}</p>
           </div>
         </Reveal>
 
@@ -88,15 +106,27 @@ export function HeroSection({ pointCount, spanDays, placeCount }: HeroSectionPro
           <div className="mt-10 grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] md:gap-16">
             <Reveal index={2}>
               <h1 className="max-w-[24ch] font-display text-2xl font-semibold leading-[1.1] tracking-tight text-ink-50 md:text-4xl">
-                за {formatDaysSpan(spanDays)} — уперше на одній карті
+                за {formatDaysSpan(spanDays)}
+                {isFullHistory ? ' — уперше на одній карті' : ' — на одній карті'}
               </h1>
             </Reveal>
 
             <Reveal index={3}>
               <p className="max-w-[44ch] text-sm leading-relaxed text-ink-400 md:pt-2 md:text-base">
-                Google показував тобі лише один день за раз. Ось уся твоя
-                історія разом — {formatNumber(placeCount)} {placesWord(placeCount)},
-                звички та маршрути, які склались непомітно для тебе самого.
+                {isFullHistory ? (
+                  <>
+                    Google показував тобі лише один день за раз. Ось уся твоя
+                    історія разом — {formatNumber(placeCount)}{' '}
+                    {placesWord(placeCount)}, звички та маршрути, які склались
+                    непомітно для тебе самого.
+                  </>
+                ) : (
+                  <>
+                    Зріз за період «{rangeLabel}»: {formatNumber(placeCount)}{' '}
+                    {placesWord(placeCount)}, куди ти повертався саме в цей час.
+                    Обери «Весь час» угорі, щоб побачити всю історію.
+                  </>
+                )}
               </p>
             </Reveal>
           </div>

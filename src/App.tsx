@@ -8,24 +8,52 @@ import { useLocationParser } from './hooks/useLocationParser'
 import { useAnalytics } from './hooks/useAnalytics'
 import { useGeocoding } from './hooks/useGeocoding'
 import { buildDisplayPlaces } from './analytics/placeInsights'
+import {
+  ALL_TIME,
+  filterPointsByRange,
+  listAvailablePeriods,
+  rangeKey,
+  type RangeSelection,
+} from './analytics/timeRange'
 
 function App() {
   const { state, parseFile, reset } = useLocationParser()
   const analytics = useAnalytics()
   const geocoding = useGeocoding()
   const [showDemoMap, setShowDemoMap] = useState(false)
+  const [range, setRange] = useState<RangeSelection>(ALL_TIME)
 
-  // Kick off the analytics engine as soon as real points are parsed — it
-  // runs in its own worker, so this doesn't block the story from rendering
-  // while clustering/distance stats are still computing.
+  const parsedPoints = state.status === 'done' ? state.points : undefined
+
+  // Run the engine for the selected period — on first parse, and again on
+  // every range change. The hook caches by range, so going back to a period
+  // already viewed resolves synchronously with no worker round-trip.
   useEffect(() => {
-    if (state.status === 'done') {
-      analytics.run(state.points)
-    }
-    // analytics.run is stable (useCallback with no deps); only re-run when
-    // a genuinely new parsed result arrives.
+    if (!parsedPoints) return
+    analytics.run(parsedPoints, range)
+    // `analytics.run` is stable; `rangeKey` collapses the selection object to
+    // the value that actually decides whether a re-run is needed, so
+    // re-selecting the same period doesn't recompute.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state])
+  }, [parsedPoints, rangeKey(range)])
+
+  // A new file has no relationship to the period chosen for the previous
+  // one, and leaving a stale month selected would silently show a filtered
+  // view of data the reader just loaded.
+  useEffect(() => {
+    if (state.status === 'idle' || state.status === 'error') setRange(ALL_TIME)
+  }, [state.status])
+
+  const periods = useMemo(
+    () => (parsedPoints ? listAvailablePeriods(parsedPoints) : null),
+    [parsedPoints],
+  )
+
+  // The map draws the same slice the stats describe.
+  const visiblePoints = useMemo(
+    () => (parsedPoints ? filterPointsByRange(parsedPoints, range) : undefined),
+    [parsedPoints, range],
+  )
 
   // Reverse-geocoding needs the place list from analytics, so it starts
   // once clustering has actually finished — on the main thread (see
@@ -50,6 +78,7 @@ function App() {
     reset()
     analytics.reset()
     geocoding.reset()
+    setRange(ALL_TIME)
     window.scrollTo({ top: 0 })
   }
 
@@ -57,13 +86,16 @@ function App() {
     return <ParsingScreen progress={state.progress} onCancel={reset} />
   }
 
-  if (state.status === 'done') {
+  if (state.status === 'done' && visiblePoints && periods) {
     return (
       <ResultsStory
-        points={state.points}
+        points={visiblePoints}
         analytics={analytics.state}
         geocoding={geocoding.state}
         displayPlaces={displayPlaces}
+        periods={periods}
+        range={range}
+        onRangeChange={setRange}
         onLoadAnother={handleBack}
       />
     )

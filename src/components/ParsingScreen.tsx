@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ShieldCheck } from 'lucide-react'
 import type { ParseProgress } from '../parsing/types'
 
 type ParsingScreenProps = {
@@ -51,10 +51,19 @@ export function ParsingScreen({ progress, onCancel }: ParsingScreenProps) {
           )}
         </p>
 
+        {/* The same badge the landing page carries, repeated at the one
+            moment the reader is actually handing over the file — a promise
+            made only on the screen before this one is the easiest promise to
+            doubt. */}
+        <p className="mt-6 inline-flex items-center gap-1.5 text-xs text-ink-400">
+          <ShieldCheck className="h-3.5 w-3.5 text-signal-400" />
+          Нічого не покидає цей пристрій
+        </p>
+
         <button
           type="button"
           onClick={onCancel}
-          className="mt-6 text-xs text-ink-400 underline decoration-ink-700 underline-offset-4 transition hover:text-trail-300"
+          className="mt-4 block w-full text-xs text-ink-400 underline decoration-ink-700 underline-offset-4 transition hover:text-trail-300"
         >
           Скасувати
         </button>

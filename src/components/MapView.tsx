@@ -6,6 +6,7 @@ import type { ParsedPoints } from '../parsing/types'
 import type { DisplayPlace } from '../analytics/placeInsights'
 import { districtShade } from '../analytics/placeInsights'
 import { aggregateHeatmapPoints } from '../map/aggregateHeatmapPoints'
+import { buildRoutes } from '../map/buildRoutes'
 import { HEAT_CONFIG, toLeafletOptions } from '../map/heatConfig'
 
 const MAX_PLACE_MARKERS = 8
@@ -101,9 +102,20 @@ export function createPulseIcon() {
   })
 }
 
+/**
+ * Which reading of the same history the map is showing. These are three
+ * genuinely different questions — where time piled up, which places those
+ * were, and how you moved between them — so they're modes rather than
+ * layers stacked together: drawing all three at once would put pins and
+ * strokes over exactly the bright cores they sit on and make each harder to
+ * read than it is alone.
+ */
+export type MapLayer = 'heat' | 'places' | 'routes'
+
 type MapViewProps = {
   points?: ParsedPoints
   places?: DisplayPlace[]
+  layer?: MapLayer
   /**
    * Off inside the scroll-story: a full-height map that captures the wheel
    * would swallow the page scroll and trap the reader on that screen, with
@@ -113,13 +125,20 @@ type MapViewProps = {
   scrollWheelZoom?: boolean
 }
 
-export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps) {
+export function MapView({
+  points,
+  places,
+  layer = 'heat',
+  scrollWheelZoom = true,
+}: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerGroupRef = useRef<L.LayerGroup | null>(null)
   const placesLayerRef = useRef<L.LayerGroup | null>(null)
 
   const heatLayerRef = useRef<L.HeatLayer | null>(null)
+  /** The points object the view was last fitted to — see the refit guard. */
+  const fittedPointsRef = useRef<ParsedPoints | null>(null)
 
   // Mount the map + base tiles once.
   useEffect(() => {
@@ -178,15 +197,14 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
     // Guards the deferred layer creation below against a superseded run of
     // this effect. Without it there is a real race: the sizing retry is a
     // setTimeout that closes over ITS OWN layerGroup, so when the effect
-    // re-runs (new points, or React's development double-mount) the pending
-    // callback from the previous run still fires, builds a heat layer, adds
-    // it to a group that has already been removed from the map, and — worst
-    // of all — overwrites heatLayerRef with it. The map then shows one layer
-    // while the tuner drives a detached one, so every slider looks dead.
+    // re-runs (new points, a range change, or React's development
+    // double-mount) the pending callback from the previous run still fires,
+    // builds a heat layer and adds it to a group that has already been
+    // removed from the map — leaving an orphaned layer behind.
     let cancelled = false
 
     // The heat layer belongs to the group being dropped, so clear the ref
-    // with it rather than leaving the tuner pointing at a detached layer.
+    // with it rather than leaving a pointer to a detached layer.
     heatLayerRef.current = null
     layerGroupRef.current?.remove()
     const layerGroup = L.layerGroup().addTo(map)
@@ -210,43 +228,72 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
         if (lng < minLng) minLng = lng
         if (lng > maxLng) maxLng = lng
       }
-      map.fitBounds(
-        [
-          [minLat, minLng],
-          [maxLat, maxLng],
-        ],
-        { padding: [32, 32] },
-      )
-
-      // The whole-history heatmap is the actual differentiator over Google
-      // (which only ever shows one day at a time) — see
-      // aggregateHeatmapPoints for why raw pings are grid-aggregated first
-      // rather than fed to the heat layer directly or just downsampled.
-      const { points: heatPoints, maxIntensity } = aggregateHeatmapPoints(points)
-
-      // Belt-and-suspenders on top of the invalidateSize()/ResizeObserver in
-      // the mount effect: if the container still measures 0x0 right at this
-      // exact instant (seen in the split-view layout — the map's flex
-      // sibling can shift its width after this effect already fired),
-      // leaflet.heat's canvas throws IndexSizeError instead of just
-      // rendering nothing. Retrying a beat later rather than crashing the
-      // whole map view is worth a little duplication here.
-      const addHeatLayerWhenSized = (attemptsLeft: number) => {
-        if (cancelled) return
-        const size = map.getSize()
-        if ((size.x === 0 || size.y === 0) && attemptsLeft > 0) {
-          setTimeout(() => addHeatLayerWhenSized(attemptsLeft - 1), 100)
-          return
-        }
-
-        // Every visual parameter comes from heatConfig.ts, which documents
-        // why each value is what it is.
-        heatLayerRef.current = L.heatLayer(
-          heatPoints,
-          toLeafletOptions(HEAT_CONFIG, maxIntensity),
-        ).addTo(layerGroup)
+      // Only refit when the DATA changed, never on a layer toggle. Switching
+      // between heat and routes is a change of reading, not of subject: if
+      // the reader has zoomed into their neighbourhood, throwing them back
+      // out to the full extent because they pressed a different tab loses
+      // the position they were studying.
+      if (fittedPointsRef.current !== points) {
+        fittedPointsRef.current = points
+        map.fitBounds(
+          [
+            [minLat, minLng],
+            [maxLat, maxLng],
+          ],
+          { padding: [32, 32] },
+        )
       }
-      addHeatLayerWhenSized(20)
+
+      if (layer === 'heat') {
+        // The whole-history heatmap is the actual differentiator over Google
+        // (which only ever shows one day at a time) — see
+        // aggregateHeatmapPoints for why raw pings are grid-aggregated first
+        // rather than fed to the heat layer directly or just downsampled.
+        const { points: heatPoints, maxIntensity } = aggregateHeatmapPoints(points)
+
+        // Belt-and-suspenders on top of the invalidateSize()/ResizeObserver
+        // in the mount effect: if the container still measures 0x0 at this
+        // exact instant, leaflet.heat's canvas throws IndexSizeError instead
+        // of just rendering nothing. Retrying a beat later rather than
+        // crashing the whole map view is worth a little duplication here.
+        const addHeatLayerWhenSized = (attemptsLeft: number) => {
+          if (cancelled) return
+          const size = map.getSize()
+          if ((size.x === 0 || size.y === 0) && attemptsLeft > 0) {
+            setTimeout(() => addHeatLayerWhenSized(attemptsLeft - 1), 100)
+            return
+          }
+
+          // Every visual parameter comes from heatConfig.ts, which documents
+          // why each value is what it is.
+          heatLayerRef.current = L.heatLayer(
+            heatPoints,
+            toLeafletOptions(HEAT_CONFIG, maxIntensity),
+          ).addTo(layerGroup)
+        }
+        addHeatLayerWhenSized(20)
+      }
+
+      if (layer === 'routes') {
+        // Thin, low-opacity strokes on a canvas renderer. Thin because the
+        // information here is the SHAPE of the network and where strokes
+        // overlap — a heavy line would merge neighbouring streets into one
+        // blob and destroy exactly that; low-opacity because overlapping
+        // passes then accumulate, so a commute driven three hundred times
+        // reads brighter than a road taken once, for free.
+        const renderer = L.canvas({ padding: 0.4 })
+        for (const segment of buildRoutes(points)) {
+          L.polyline(segment, {
+            renderer,
+            color: '#5fdcb9',
+            weight: 1.1,
+            opacity: 0.32,
+            lineCap: 'round',
+            lineJoin: 'round',
+            interactive: false,
+          }).addTo(layerGroup)
+        }
+      }
     } else {
       const latLngs = DEMO_POINTS.map((p) => [p.lat, p.lng] as [number, number])
       map.fitBounds(L.latLngBounds(latLngs), { padding: [64, 64] })
@@ -280,7 +327,7 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
     return () => {
       cancelled = true
     }
-  }, [points])
+  }, [points, layer])
 
   // Place markers live in their own layer/effect, separate from the
   // heatmap — analytics finishes well after the heatmap is already showing
@@ -291,7 +338,7 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
     if (!map) return
 
     placesLayerRef.current?.remove()
-    if (!places || places.length === 0) {
+    if (layer !== 'places' || !places || places.length === 0) {
       placesLayerRef.current = null
       return
     }
@@ -331,7 +378,7 @@ export function MapView({ points, places, scrollWheelZoom = true }: MapViewProps
           { direction: 'top', offset: [0, -12] },
         )
     })
-  }, [places])
+  }, [places, layer])
 
   return <div ref={containerRef} className="h-full w-full" />
 }

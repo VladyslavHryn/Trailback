@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import '../map/registerLeafletHeat'
 import type { ParsedPoints } from '../parsing/types'
@@ -190,6 +190,10 @@ export function MapView({
   const layerGroupRef = useRef<L.LayerGroup | null>(null)
   const placesLayerRef = useRef<L.LayerGroup | null>(null)
 
+  // Drives the disabled state of the zoom buttons below, so neither of them is
+  // ever a control that looks live and does nothing at the ends of the range.
+  const [zoomState, setZoomState] = useState({ canIn: true, canOut: true })
+
   const heatLayerRef = useRef<L.HeatLayer | null>(null)
   /** The points object the view was last fitted to — see the refit guard. */
   const fittedPointsRef = useRef<ParsedPoints | null>(null)
@@ -205,8 +209,11 @@ export function MapView({
     // always in a valid state; fitBounds then moves it to the real data a
     // moment later. Cheap insurance against a failure mode whose symptom
     // (an empty black rectangle) points nowhere near its cause.
+    // NO built-in zoomControl — see the ZoomButtons overlay at the bottom of
+    // this file for the whole reason, which is a page-scroll bug rather than a
+    // matter of taste.
     const map = L.map(containerRef.current, {
-      zoomControl: true,
+      zoomControl: false,
       scrollWheelZoom,
       center: [48.4, 31.2],
       zoom: 5,
@@ -263,6 +270,18 @@ export function MapView({
 
     mapRef.current = map
 
+    const syncZoomState = () => {
+      setZoomState({
+        canIn: map.getZoom() < map.getMaxZoom(),
+        canOut: map.getZoom() > map.getMinZoom(),
+      })
+    }
+    syncZoomState()
+    // `zoomlevelschange` matters as much as `zoomend`: adding the fallback tile
+    // layer changes maxZoom (19 vs 20), which moves the end of the range under
+    // the buttons without the zoom itself changing.
+    map.on('zoomend zoomlevelschange', syncZoomState)
+
     // Leaflet measures the container once at construction time. If the
     // flex layout around it hasn't settled yet (or the pane resizes later),
     // the map is left thinking it's 0x0 — harmless for plain markers, but
@@ -274,6 +293,7 @@ export function MapView({
     resizeObserver.observe(containerRef.current)
 
     return () => {
+      map.off('zoomend zoomlevelschange', syncZoomState)
       resizeObserver.disconnect()
       map.remove()
       mapRef.current = null
@@ -543,5 +563,96 @@ export function MapView({
     }
   }, [places, layer])
 
-  return <div ref={containerRef} className="h-full w-full" />
+  const zoomIn = useCallback(() => mapRef.current?.zoomIn(), [])
+  const zoomOut = useCallback(() => mapRef.current?.zoomOut(), [])
+
+  return (
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className="h-full w-full" />
+      <ZoomButtons
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        canZoomIn={zoomState.canIn}
+        canZoomOut={zoomState.canOut}
+      />
+    </div>
+  )
+}
+
+/**
+ * The map's own zoom control, replacing Leaflet's.
+ *
+ * WHY NOT LEAFLET'S. Its ZoomControl binds `_refocusOnMap` to the button's
+ * click, which calls `.focus()` on the map container — and Leaflet gives that
+ * container `tabindex="0"` for keyboard panning, so the browser scrolls it into
+ * view. Inside a scroll story where the map IS a full-viewport section, that
+ * means every press of + or − yanked the page down to align the section, and
+ * `scroll-behavior: smooth` animated the yank. Measured: scrollY 524 → 900 on a
+ * single click, a 376px jump nobody asked for, after which the reader had to
+ * scroll back up to press the button again.
+ *
+ * There is no option to turn that off, and suppressing it means overwriting a
+ * private method. Plain buttons outside the Leaflet DOM cannot do it at all,
+ * which is the difference between fixing the bug and disabling its symptom.
+ *
+ * Placed on the RIGHT EDGE, VERTICALLY CENTRED. Two separate constraints meet
+ * here. The left axis is out because the section's caption, headline and layer
+ * switcher all live there — Leaflet's default top-left put the only two buttons
+ * on the screen underneath the text. And the map is a FULL-VIEWPORT section, so
+ * anchoring to its top or bottom edge puts the buttons off-screen for most of
+ * the section's scroll: pinned to the bottom they measured 1212px down a 900px
+ * viewport, i.e. not reachable at all without scrolling first. Centring on a
+ * one-viewport-tall element keeps them within the viewport for as long as the
+ * map meaningfully occupies it — the same problem the caption solves by being
+ * sticky.
+ */
+function ZoomButtons({
+  onZoomIn,
+  onZoomOut,
+  canZoomIn,
+  canZoomOut,
+}: {
+  onZoomIn: () => void
+  onZoomOut: () => void
+  canZoomIn: boolean
+  canZoomOut: boolean
+}) {
+  // z-900 clears Leaflet's panes (which top out at 700) and the section's
+  // bottom scrim, while staying under the sticky caption (800) and the fixed
+  // header (1100) — nothing here should ever paint over the chrome.
+  return (
+    <div className="absolute right-6 top-1/2 z-[900] flex -translate-y-1/2 flex-col gap-1.5 md:right-10">
+      <ZoomButton label="Збільшити" onClick={onZoomIn} disabled={!canZoomIn}>
+        +
+      </ZoomButton>
+      <ZoomButton label="Зменшити" onClick={onZoomOut} disabled={!canZoomOut}>
+        −
+      </ZoomButton>
+    </div>
+  )
+}
+
+function ZoomButton({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  disabled: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="flex h-9 w-9 items-center justify-center rounded-lg border border-ink-700 bg-ink-950/80 font-mono text-base leading-none text-ink-200 backdrop-blur-sm transition-colors hover:border-trail-500/60 hover:text-trail-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-trail-300 disabled:pointer-events-none disabled:opacity-35"
+    >
+      {children}
+    </button>
+  )
 }

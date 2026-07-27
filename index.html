@@ -4,17 +4,20 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Fraunces for display: a high-contrast old-style serif with SOFT and
-         WONK axes, which is what keeps it from reading as a stock serif —
-         it carries the "archive / atlas" register this product is about.
-         Instrument Sans handles body copy, IBM Plex Mono the data labels
-         (coordinates, counts, axis ticks). -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400..700,0..100,0..1&family=Instrument+Sans:wght@400..600&family=IBM+Plex+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Fonts are SELF-HOSTED (see the @fontsource imports in src/index.css),
+         not fetched from Google's CDN, for two independent reasons:
+
+         1. CORRECTNESS. The previous faces here — Fraunces and Instrument
+            Sans — have no Cyrillic glyphs at all. Every Ukrainian word in this
+            UI, which is all of them, silently fell back to the browser's
+            default serif and system sans. The typography that shipped was
+            therefore Georgia + system-ui, i.e. no chosen typeface at all.
+
+         2. PRIVACY. This product's whole promise is that the file never
+            leaves the browser. A stylesheet link to fonts.googleapis.com
+            hands Google the visitor's IP and referrer on every single load —
+            a third-party request on the one screen that claims there are
+            none. Serving the woff2 from our own origin removes it. -->
     <title>Trailback — карта твоєї геоісторії</title>
     <meta
       name="description"

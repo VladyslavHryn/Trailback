@@ -23,3 +23,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Kyiv*Type source release (315 files: OTF/TTF/WEB + variable GX), kept out of
+# the repo. The face is not in use — see the note in src/index.css for why it
+# was tried and reverted — but the release stays ignored so dropping it back in
+# here never accidentally commits 315 font files.
+KyivType-NoVariable/
+KyivType-VariableGX/

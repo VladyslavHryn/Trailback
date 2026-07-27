@@ -35,10 +35,31 @@ function truncate(value: string, max = 22): string {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value
 }
 
-function createPlaceIcon(rank: number, color: string, label: string | null) {
+/**
+ * The product's place pin: a small luminous dot on the coordinate, with an
+ * optional name chip beside it.
+ *
+ * Exported so the landing page's preview map draws pins with the SAME markup
+ * and the same CSS as the real results map. A visual copy would drift the
+ * first time either side is touched, and the preview's whole job is to be an
+ * honest sample of what the product produces.
+ *
+ * `rank` is optional: the results map numbers its top places, while the
+ * preview is naming one or two landmarks where a rank would be meaningless.
+ */
+export function createPlaceIcon(
+  rank: number | null,
+  color: string,
+  label: string | null,
+) {
+  const rankHtml =
+    rank === null
+      ? ''
+      : `<span class="trail-pin__rank">${String(rank).padStart(2, '0')}</span>`
+
   const labelHtml = label
     ? `<span class="trail-pin__label">
-         <span class="trail-pin__rank">${String(rank).padStart(2, '0')}</span>
+         ${rankHtml}
          <span>${escapeHtml(truncate(label))}</span>
        </span>`
     : ''

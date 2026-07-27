@@ -19,7 +19,7 @@ import {
    2.2 and the value chips ran the default, which is the kind of drift that
    makes an icon set look borrowed instead of specified. */
 const ICON_STROKE = 2
-import { TILE_URL, TILE_ATTRIBUTION, createPulseIcon } from './MapView'
+import { TILE_URL, TILE_ATTRIBUTION, createPlaceIcon } from './MapView'
 
 const GUIDE_STEPS = [
   {
@@ -372,90 +372,76 @@ const DEMO_DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт']
 
 type LatLng = { lat: number; lng: number }
 
-// The five recurring places the demo cycles through, ordered by angle around
-// the group's centroid so the loop between them never crosses itself.
-const DEMO_STOPS: LatLng[] = [
-  { lat: 50.4522, lng: 30.5257 }, // Володимирська гірка
+/**
+ * The recurring places the preview cycles through. Two carry a name, and
+ * only two: the chips are the thing that connects this preview to the real
+ * results map, but a name on every pin turns a small preview into a wall of
+ * overlapping labels — the same reason the results map labels only its
+ * strongest few.
+ */
+const DEMO_STOPS: Array<LatLng & { label?: string }> = [
+  { lat: 50.4522, lng: 30.5257, label: 'Дім' }, // Володимирська гірка
   { lat: 50.4649, lng: 30.5183 }, // Контрактова площа
   { lat: 50.4472, lng: 30.5145 }, // Золоті ворота
-  { lat: 50.438, lng: 30.5192 }, // Бессарабська площа
+  { lat: 50.438, lng: 30.5192, label: 'Робота' }, // Бессарабська площа
   { lat: 50.4501, lng: 30.5234 }, // Майдан Незалежності
 ]
 
 /**
- * Deterministic pseudo-noise in [-1, 1].
+ * The preview track, MAP-MATCHED to Kyiv's real street network.
  *
- * Deterministic matters: the track is rebuilt on every mount, and a random
- * one would visibly redraw itself differently each time the landing page
- * loads, which reads as instability rather than as data.
+ * This is baked geometry, not a runtime lookup. It was produced once by
+ * routing the stops above through OSRM (`/route/v1/driving`, 673 vertices,
+ * 15.5 km) and then simplified with Douglas-Peucker at a 4 m tolerance,
+ * which cuts it to 117 vertices without moving the line anywhere a reader
+ * could see — a road's shape survives 4 m; only redundant collinear samples
+ * don't.
+ *
+ * WHY BAKED. The landing page is decoration shown before any file exists, so
+ * a network round-trip to a routing service on every visit would buy nothing
+ * and add a failure mode (rate limits, downtime, offline) to the first
+ * screen anyone sees.
+ *
+ * WHY MATCHED AT ALL, rather than a synthetic curve. The previous version
+ * invented this path with Bezier curves and pseudo-random jitter. It read as
+ * plausible, but every wiggle in it was decoration — and the wiggle in a
+ * real trace is the one thing that proves it was recorded rather than drawn.
+ * Borrowing real road geometry means the bends here are genuine turns at
+ * genuine intersections, so the preview is a truthful sample of what the
+ * product draws instead of an artist's impression of one.
  */
-function demoNoise(seed: number): number {
-  const x = Math.sin(seed * 12.9898) * 43758.5453
-  return (x - Math.floor(x)) * 2 - 1
-}
-
-/**
- * Turns the five stops into a dense, organic track.
- *
- * WHY: joining the stops directly drew five ruler-straight lines across the
- * middle of Kyiv — a stretched triangle that looks like a route someone
- * planned, not like a path a phone recorded. A real GPS trace is hundreds of
- * closely-spaced samples that curve between places and wander slightly
- * around the true line, and that texture is the entire reason the preview is
- * worth showing at all.
- *
- * Each leg is a quadratic Bézier whose control point is pushed out
- * perpendicular to the leg (alternating sides, so the path snakes rather
- * than bowing the same way every time), then every sample gets a small
- * offset on top. The curve is what stops it reading as a straight line; the
- * per-sample offset is what stops it reading as a perfect curve.
- */
-function buildDemoTrack(stops: LatLng[], samplesPerLeg = 44): LatLng[] {
-  const track: LatLng[] = []
-  // Closes the loop: the last stop leads back to the first, so the track
-  // reads as a routine that repeats rather than a one-way trip.
-  const legs = stops.length
-
-  for (let leg = 0; leg < legs; leg++) {
-    const a = stops[leg]
-    const b = stops[(leg + 1) % legs]
-
-    const dLat = b.lat - a.lat
-    const dLng = b.lng - a.lng
-
-    // Perpendicular to the leg, so the bulge is always across the direction
-    // of travel regardless of which way the leg runs.
-    const side = leg % 2 === 0 ? 1 : -1
-    const bendLat = -dLng * 0.16 * side
-    const bendLng = dLat * 0.16 * side
-
-    const controlLat = a.lat + dLat / 2 + bendLat
-    const controlLng = a.lng + dLng / 2 + bendLng
-
-    for (let i = 0; i < samplesPerLeg; i++) {
-      const t = i / samplesPerLeg
-      const inv = 1 - t
-
-      // Quadratic Bézier.
-      const lat = inv * inv * a.lat + 2 * inv * t * controlLat + t * t * b.lat
-      const lng = inv * inv * a.lng + 2 * inv * t * controlLng + t * t * b.lng
-
-      // ~15-30 m of wander, which is roughly what consumer GPS actually
-      // produces. Enough to give the line texture, far too small to move it
-      // off the streets it follows.
-      const jitter = 0.00022
-      track.push({
-        lat: lat + demoNoise(leg * 977 + i * 3) * jitter,
-        lng: lng + demoNoise(leg * 977 + i * 3 + 1) * jitter,
-      })
-    }
-  }
-
-  track.push(stops[0])
-  return track
-}
-
-const DEMO_TRACK = buildDemoTrack(DEMO_STOPS)
+const DEMO_TRACK: Array<[lat: number, lng: number]> = [
+  [50.45213, 30.52561], [50.45174, 30.5263], [50.45042, 30.5245], [50.45125, 30.52298],
+  [50.45239, 30.5243], [50.45233, 30.52446], [50.45235, 30.5246], [50.45287, 30.52524],
+  [50.4531, 30.52542], [50.45339, 30.52534], [50.45347, 30.52548], [50.45308, 30.52597],
+  [50.4524, 30.5272], [50.45213, 30.52734], [50.45164, 30.52825], [50.4507, 30.52927],
+  [50.45074, 30.52937], [50.45191, 30.52825], [50.45354, 30.52776], [50.45492, 30.52755],
+  [50.45537, 30.52766], [50.45602, 30.52806], [50.45629, 30.52806], [50.45657, 30.52792],
+  [50.45703, 30.52753], [50.45808, 30.5263], [50.46024, 30.52303], [50.4613, 30.52467],
+  [50.46316, 30.52187], [50.46445, 30.52395], [50.46628, 30.521], [50.46564, 30.52002],
+  [50.4651, 30.51873], [50.46506, 30.5184], [50.46512, 30.51827], [50.46498, 30.51784],
+  [50.46496, 30.5178], [50.465, 30.51832], [50.46508, 30.5184], [50.46512, 30.51827],
+  [50.46498, 30.51784], [50.46406, 30.51643], [50.46313, 30.5172], [50.46249, 30.51784],
+  [50.46139, 30.51836], [50.46068, 30.52097], [50.46111, 30.52169], [50.45826, 30.52605],
+  [50.45703, 30.52753], [50.45657, 30.52792], [50.45621, 30.52807], [50.45592, 30.52801],
+  [50.45537, 30.52766], [50.45492, 30.52755], [50.45452, 30.52756], [50.45292, 30.52792],
+  [50.44965, 30.52344], [50.44894, 30.52269], [50.44797, 30.5221], [50.4448, 30.52104],
+  [50.44604, 30.5134], [50.4472, 30.51387], [50.44717, 30.51434], [50.4472, 30.51387],
+  [50.44894, 30.51458], [50.44776, 30.52202], [50.44097, 30.51972], [50.44082, 30.51985],
+  [50.44078, 30.52013], [50.44074, 30.52237], [50.44065, 30.52251], [50.44023, 30.52273],
+  [50.43955, 30.52356], [50.43836, 30.52102], [50.43815, 30.52081], [50.43786, 30.52072],
+  [50.43611, 30.52072], [50.43601, 30.52064], [50.43595, 30.52049], [50.43595, 30.51843],
+  [50.43821, 30.51845], [50.43849, 30.51899], [50.43798, 30.51959], [50.43849, 30.51899],
+  [50.43912, 30.52034], [50.44032, 30.51909], [50.44058, 30.51965], [50.44082, 30.51985],
+  [50.44773, 30.52218], [50.4488, 30.52277], [50.44954, 30.52349], [50.45186, 30.52669],
+  [50.4518, 30.52796], [50.45164, 30.52825], [50.4507, 30.52927], [50.45074, 30.52937],
+  [50.45233, 30.52782], [50.45242, 30.5276], [50.4524, 30.5272], [50.44965, 30.52344],
+  [50.44894, 30.52269], [50.44797, 30.5221], [50.4448, 30.52104], [50.44526, 30.51819],
+  [50.44816, 30.51935], [50.44773, 30.52218], [50.44861, 30.52263], [50.44931, 30.52323],
+  [50.45186, 30.52669], [50.4518, 30.52796], [50.45164, 30.52825], [50.4507, 30.52927],
+  [50.45074, 30.52937], [50.45238, 30.52773], [50.4524, 30.5272], [50.45174, 30.5263],
+  [50.45213, 30.52561]
+]
 
 const DEMO_INSIGHTS = [
   { label: 'Пройдено', value: '2 847 км' },
@@ -505,19 +491,19 @@ function HeroDemo() {
       maxZoom: 20,
     }).addTo(map)
 
-    const latLngs = DEMO_TRACK.map((p) => [p.lat, p.lng] as [number, number])
+    const latLngs: Array<[number, number]> = DEMO_TRACK
     boundsRef.current = L.latLngBounds(latLngs)
     map.fitBounds(boundsRef.current, { padding: [28, 28] })
 
     // Jade, matching MapView's demo route — a path between places, which is
     // the "place" accent's job; amber stays reserved for density.
-    // `smoothFactor: 0` disables Leaflet's Douglas-Peucker simplification.
-    // It defaults to 1 and is normally a good trade, but it is measured in
-    // screen pixels: at the zoom this preview sits at, the whole 220-sample
-    // track collapsed to THIRTEEN vertices — every curve and every bit of
-    // GPS wander thrown away, leaving precisely the straight-line zigzag the
-    // dense track was built to replace. The detail here IS the content, so
-    // it has to survive to the screen.
+    // `smoothFactor: 0` disables Leaflet's own Douglas-Peucker pass. It
+    // defaults to 1 and is normally a good trade, but it is measured in
+    // SCREEN PIXELS, so at this preview's zoom it flattened the whole track
+    // to thirteen vertices — every turn thrown away, leaving a straight-line
+    // zigzag. The geometry is already simplified once, in metres, where the
+    // tolerance means something; simplifying again in pixels only destroys
+    // the street shape that is the point of showing it.
     glowLineRef.current = L.polyline(latLngs, {
       color: '#25c79c',
       weight: 7,
@@ -540,10 +526,14 @@ function HeroDemo() {
       smoothFactor: 0,
     }).addTo(map)
 
+    // The product's own pin component, not a preview-only lookalike, so the
+    // chip a reader sees here is literally the one they'll see on their own
+    // map. No rank: numbering is a ranking claim, and nothing here is ranked.
     markersRef.current = DEMO_STOPS.map((p) =>
-      L.marker([p.lat, p.lng], { icon: createPulseIcon(), opacity: 0 }).addTo(
-        map,
-      ),
+      L.marker([p.lat, p.lng], {
+        icon: createPlaceIcon(null, '#5fdcb9', p.label ?? null),
+        opacity: 0,
+      }).addTo(map),
     )
 
     mapRef.current = map

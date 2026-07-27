@@ -75,10 +75,31 @@ export const HEAT_CONFIG: HeatConfig = {
   radius: 14,
   blur: 18,
 
-  // Above this zoom leaflet.heat scales intensity down. Set near the zoom a
-  // city-scale history actually opens at, so the map doesn't dim as soon as
-  // the reader leans in.
-  maxZoom: 16,
+  // NEUTRALISES leaflet.heat's zoom scaling. Read the plugin, not the name:
+  // it computes
+  //     v = 1 / 2 ** clamp(maxZoom - currentZoom, 0, 12)
+  // and multiplies EVERY point's intensity by v. So v is 1 at any zoom at or
+  // above `maxZoom`, and halves for each level below it. A value of 0 puts the
+  // whole practical zoom range on the flat part of that curve.
+  //
+  // This was 16, on the reading that the option sets where the layer "looks
+  // right". The effect was the opposite of the comment: below zoom 16 the heat
+  // halved per level and simply vanished. Measured on the rendered canvas, two
+  // clicks of the zoom-out control:
+  //
+  //   zoom 16 → 2828 lit samples, peak alpha 158
+  //   zoom 15 → 2775                        85
+  //   zoom 14 → 1471                        71
+  //   zoom 13 →  760                        60      ← and gone below that
+  //
+  // The scaling exists for RAW pings, where a point is one observation and a
+  // zoomed-out view should discount crowding. Nothing here is raw: the
+  // aggregation upstream bins onto a FIXED geographic grid and normalises each
+  // cell to 0..1 against the whole history (see HeatScale). A cell's value is
+  // already an absolute statement about that place, so re-scaling it by the
+  // current zoom makes the same cell mean different things at different zooms
+  // — the exact fault the fixed reference frame was built to remove.
+  maxZoom: 0,
 
   // Near-zero floor: alpha should be free to fall all the way to nothing, so
   // a place visited once reads as a whisper rather than as a statement. This

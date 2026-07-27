@@ -109,22 +109,27 @@ export function LandingPage({
             the flow the reader was following. */}
         <div className="grid w-full max-w-6xl items-start gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16">
           <div className="flex flex-col">
-            {/* Mono + caps: a system notice, in a different voice from both
-                the headline and the body. */}
-            <span className="text-label self-start rounded-full border border-trail-500/40 bg-trail-500/10 px-3 py-1.5 text-trail-300">
-              Google видаляє хмарний Timeline
-            </span>
+            {/* No eyebrow badge above the headline. It carried a real fact,
+                but it shouted it in caps, in mono, inside a pill — three
+                emphasis devices stacked on a line of supporting text, which
+                made it louder than the H1 it was supposed to introduce. The
+                urgency now opens the subtitle in plain language, where it
+                reads as a reason rather than as a sticker.
 
+                The headline is the column's first element, so it carries no
+                top margin: the grid is `items-start`, and a leftover offset
+                here would drop it below the top of the preview card beside
+                it. */}
             {/* The non-breaking space before the dash is load-bearing: without
                 it the line broke as "…геоісторія" / "— на одній карті", and a
                 dash must never open a line. It now breaks after the dash. */}
-            <h1 className="text-balance mt-6 font-display text-title-lg font-bold leading-[1.04] text-ink-50">
+            <h1 className="text-balance font-display text-title-lg font-bold leading-[1.04] text-ink-50">
               Вся твоя геоісторія&nbsp;— на одній карті
             </h1>
 
-            <p className="mt-5 max-w-[48ch] text-body-lg leading-relaxed text-ink-400">
-              Google Timeline показує лише один день за раз. Завантаж свій
-              експорт — побач роки маршрутів одразу.
+            <p className="mt-6 max-w-[48ch] text-body-lg leading-relaxed text-ink-400">
+              Google видаляє хмарний Timeline. Завантаж свій експорт — побач
+              роки маршрутів одразу.
             </p>
 
             {/* Bare icons, NO chip. These three had the identical treatment as
@@ -134,6 +139,14 @@ export function LandingPage({
                 container is now what marks something as ACTIONABLE, and it is
                 spent only there. These also drop to trail-500 and 18px: a list
                 marker should sit under the thing it is listing, not compete. */}
+            {/* Hero vertical rhythm, on one 8px ladder: 24 to the subtitle,
+                32 to this list, 40 to the drop zone. Each step widens as the
+                relationship loosens — a headline owns its subtitle, the list
+                is a separate group, the drop zone is the action. It ran
+                20/32/36 before, which is three different near-misses of the
+                8px grid the rest of the page sits on, and left the last two
+                gaps 4px apart: too close to read as different, too far to
+                read as the same. */}
             <ul className="mt-8 flex flex-col gap-3">
               {VALUE_POINTS.map(({ icon: Icon, text }) => (
                 <li key={text} className="flex items-center gap-3">
@@ -163,7 +176,7 @@ export function LandingPage({
                 setIsDragActive(false)
                 handleFiles(e.dataTransfer.files)
               }}
-              className={`mt-9 rounded-2xl border px-5 py-6 transition-colors duration-200 sm:px-6 ${
+              className={`mt-10 rounded-2xl border px-5 py-6 transition-colors duration-200 sm:px-6 ${
                 isDragActive
                   ? 'border-trail-400 bg-trail-500/[0.09]'
                   : 'border-ink-700 bg-ink-900/50 hover:border-trail-500/55'

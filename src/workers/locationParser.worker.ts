@@ -30,13 +30,31 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
       result.lat.buffer,
       result.lng.buffer,
       result.timestampSec.buffer,
+      result.sources.buffer,
     ])
   } catch (error) {
-    const text =
-      error instanceof LocationParseError
-        ? error.message
-        : 'Не вдалося обробити файл. Спробуй інший експорт.'
-    const message: WorkerResponse = { type: 'error', message: text }
+    // A LocationParseError is a diagnosis this code wrote on purpose, and its
+    // message already tells the reader what to do about it.
+    //
+    // ANYTHING ELSE IS A SURPRISE, and the previous version replaced it with
+    // a fixed sentence — which is how a real failure became impossible to act
+    // on: the same nine words covered a corrupt file, an out-of-memory kill
+    // and a bug in this parser, and nothing anywhere recorded which. Keep the
+    // friendly framing, carry the actual reason inside it, and put the full
+    // error (stack included) somewhere a developer can read it.
+    if (error instanceof LocationParseError) {
+      const message: WorkerResponse = { type: 'error', message: error.message }
+      self.postMessage(message)
+      return
+    }
+
+    console.error('[trailback] parsing failed unexpectedly', error)
+    const detail =
+      error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    const message: WorkerResponse = {
+      type: 'error',
+      message: `Не вдалося обробити файл — ${detail}`,
+    }
     self.postMessage(message)
   }
 }

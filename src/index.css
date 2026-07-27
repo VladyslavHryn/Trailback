@@ -1,19 +1,73 @@
 @import "tailwindcss";
 
+/* Self-hosted faces, Cyrillic included. See index.html for why these are not
+   on a CDN.
+   IBM Plex is imported per subset AND per weight, so only the four weights
+   this UI actually sets ship at all. Literata is variable and its package
+   exposes one stylesheet per AXIS rather than per subset, so its Greek and
+   Vietnamese files land in dist too; each @font-face carries a unicode-range,
+   so a browser never downloads them — bundle size, not load time. */
+@import "@fontsource-variable/literata/wght.css";
+@import "@fontsource/ibm-plex-sans/cyrillic-400.css";
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/cyrillic-500.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/cyrillic-600.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/ibm-plex-mono/cyrillic-400.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/cyrillic-500.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
+
+/* WHY KYIV*TYPE IS NOT HERE, having been vendored and then removed.
+   It was the right idea — a face drawn from Kyiv's own signage vernacular,
+   for a product about a Ukrainian's own city — and it failed on the one job
+   that mattered. It draws the і-dot and the й-breve as small wedges floating
+   well above cap height, visibly detached from the letter. Verified in a
+   rendered comparison, not assumed: identical at weight 700 and 800, with
+   `case` on and off, with no font-features at all, and identical across all
+   six cuts tried (Sans, Sans-, Sans2, Sans3, Serif, Titling). So it is the
+   author's deliberate design across the superfamily, not a bug in one cut and
+   not something a weight change or a feature flag can fix.
+   The product's core word is "геоісторія" — two і in the headline. A native
+   reader sees a rendering fault, which is the opposite of what a signature
+   typeface is for. Reverted to Literata. To try it again, the release is still
+   in KyivType-NoVariable/ (gitignored). */
+
 @theme {
-  /* TYPE. Three roles, deliberately different in kind rather than three
-     weights of the same voice:
-       display — Fraunces, a high-contrast old-style serif. Its SOFT/WONK
-                 axes (see index.html) give it a hand-cut quality that a
-                 geometric grotesk cannot; it sets the "personal archive"
-                 register the product is about.
-       body    — Instrument Sans. Neutral and quiet on purpose: the display
-                 face is doing the talking, so this only has to be readable.
-       mono    — IBM Plex Mono for anything that is DATA (coordinates,
-                 counts, axis ticks, durations). Tabular figures matter more
-                 here than personality. */
-  --font-display: "Fraunces", ui-serif, Georgia, serif;
-  --font-body: "Instrument Sans", system-ui, sans-serif;
+  /* TYPE. Three roles, deliberately different in KIND — a serif, a grotesque
+     and a monospace — rather than three weights of one voice. One family at
+     one weight everywhere is the most recognisable tell of an interface whose
+     type nobody actually chose.
+       display — Literata. A contemporary text serif (TypeTogether) with
+                 sturdy wedge serifs, a large x-height and a slight
+                 calligraphic cant. Drawn for long-form reading, which is the
+                 register of a product about your own past. Variable 200..900,
+                 so a headline can be set at a decisive weight.
+                 Honest about what this is: a competent, restrained choice
+                 rather than a signature. The characterful alternative was
+                 tried and rejected on evidence — see the Kyiv*Type note above.
+       body    — IBM Plex Sans. A grotesque with a point of view, not a
+                 neutral default: flat terminals, the distinctive two-storey
+                 `a` and the open `g`. It is also the sibling of the mono
+                 below, so body copy and data labels share one skeleton.
+       mono    — IBM Plex Mono for anything that is DATA (coordinates, counts,
+                 axis ticks, durations, filenames). Tabular figures matter
+                 more here than personality.
+
+     THE HARD CONSTRAINT THAT DECIDED THIS SET: the entire interface is in
+     Ukrainian, so a face without Cyrillic is not a face — it is a fallback to
+     Georgia and system-ui. Fraunces and Instrument Sans, which this replaces,
+     have no Cyrillic at all, so none of the typography previously described
+     here was ever on screen. Every family below carries a Cyrillic subset,
+     verified to include the Ukrainian-specific Ґ ґ Є є І і Ї ї.
+
+     No system-ui in any stack, deliberately: it is not a typeface, it is
+     whatever the OS happens to have, which is how type ends up unchosen.
+
+     */
+  --font-display: "Literata Variable", "Literata", Georgia, serif;
+  --font-body: "IBM Plex Sans", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
   /* SURFACE. A graphite ramp — neither pure black (which reads as an
@@ -107,31 +161,29 @@ body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 
-  /* DEPTH, layer 1 of 2: a gradient mesh instead of a flat fill. Three very
-     low-alpha radials, one per accent, placed well apart and pinned to the
-     viewport. Individually none of them is identifiable as a "glow"; what
-     they do collectively is stop any large dark area from being a single
-     flat value, which is the tell that makes flat-black sections look
-     cheap. `fixed` means this costs nothing on scroll — it never repaints. */
+  /* NO ambient wash. This went through three radials (amber, jade, and a
+     periwinkle the accent system had already declared removed), then one
+     narrowed amber radial — and on a full-screen capture even the single one
+     still read as "the whole upper half is tinted amber" rather than as light.
+     A background glow cannot compete with the accent it is made of: every
+     amber thing that is supposed to draw the eye — the badge, the button, the
+     value icons — was sitting inside a large amber field.
+     The grain in body::after is what keeps a flat dark surface from reading as
+     dead, and it does that without spending the accent colour. */
   background-color: var(--color-ink-950);
-  background-image:
-    radial-gradient(58% 44% at 12% 8%, rgba(217, 119, 6, 0.09), transparent 68%),
-    radial-gradient(50% 40% at 88% 32%, rgba(37, 199, 156, 0.07), transparent 70%),
-    radial-gradient(62% 48% at 50% 96%, rgba(124, 131, 240, 0.07), transparent 72%);
-  background-attachment: fixed;
-  background-repeat: no-repeat;
 }
 
-/* Fraunces is a variable font with optical sizing — headline sizes want the
-   high-contrast, tighter-spaced end of the range, which `opsz` only reaches
-   if it's actually driven. WONK swaps in the alternate, canted glyph shapes
-   that give the face its character; left at 0 it reads like any other serif,
-   which would defeat the point of choosing it. */
+/* Literata carries `wght` only, so an `opsz` declaration would be a silently
+   ignored no-op (which is what the earlier Fraunces SOFT/WONK settings had
+   become). What a text serif does need at display sizes is negative tracking:
+   metrics drawn to hold apart at 16px open into gaps at 49px.
+   No `case` here. It was set once to lift the em dash toward the cap-height
+   optical centre, and it is not worth the risk: `case` also swaps diacritics
+   for their raised, capital-height forms, so on lowercase Ukrainian it can
+   push the dot off an і. Kerning alone. */
 .font-display {
-  font-variation-settings:
-    "opsz" 100,
-    "SOFT" 28,
-    "WONK" 1;
+  letter-spacing: -0.021em;
+  font-feature-settings: "kern" 1;
 }
 
 #root {
@@ -168,12 +220,14 @@ body {
   text-transform: uppercase;
 }
 
-/* HERO NUMERAL. The tight tracking that large Fraunces figures need, applied
-   in one place so every headline number on every screen is set identically —
-   the alternative was `tracking-tighter` repeated with a different size each
-   time, which is how the same figure ended up looking different per screen.
-   `font-feature-settings` locks lining, tabular figures so a counting
-   animation doesn't reflow as digits change width. */
+/* HERO NUMERAL. Set in one place so every headline number on every screen is
+   identical — the alternative was `tracking-tighter` repeated with a different
+   size each time, which is how the same figure ended up looking different per
+   screen.
+   `tnum` is verified present in this face (checked in the font's GSUB, not
+   assumed): it locks tabular figures so the counting animation cannot reflow
+   as digits change. Measured at hero size, every Literata digit then holds one
+   width; without it they range 24.9–37.0px. */
 .numeral-hero,
 .numeral-display {
   font-family: var(--font-display);

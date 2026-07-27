@@ -40,10 +40,11 @@ export interface HeatConfig {
 }
 
 /**
- * Headroom multiplier applied to the peak cell intensity when computing
- * `max`. Overlapping blobs are summed before the gradient is applied, so a
- * dense region accumulates past any single cell's value; a little headroom
- * keeps the top of the ramp reserved for genuinely exceptional density.
+ * Headroom above the top of the normalised intensity scale (1.0), used
+ * directly as the heat layer's `max`. Overlapping blobs are summed before
+ * the gradient is applied, so a dense region accumulates past any single
+ * cell's value; a little headroom keeps the top of the ramp reserved for
+ * genuinely exceptional density.
  *
  * MEASURED, not guessed. The rendered canvas was sampled and its pixels
  * bucketed by alpha across a sweep of values (share of heat pixels in the
@@ -118,16 +119,23 @@ export function toLeafletGradient(stops: HeatStop[]): Record<number, string> {
   return gradient
 }
 
-/** The full options object for a heat layer, given the dataset's peak cell. */
-export function toLeafletOptions(config: HeatConfig, peakIntensity: number) {
+/**
+ * The full options object for a heat layer.
+ *
+ * `max` is a CONSTANT because the aggregation now hands over intensities
+ * already normalised to 0..1 against a scale derived from the whole history
+ * (see HeatScale). It used to be the current slice's own peak, which is what
+ * made the time filter appear to do nothing: every slice renormalised itself
+ * back to full brightness. Normalising upstream, once, is what lets a
+ * quieter period actually render quieter.
+ */
+export function toLeafletOptions(config: HeatConfig) {
   return {
     radius: config.radius,
     blur: config.blur,
     maxZoom: config.maxZoom,
     minOpacity: config.minOpacity,
-    // A history with a single cell (or none) would give a zero/NaN max and
-    // leaflet.heat divides by it.
-    max: Math.max(peakIntensity * ACCUMULATION_HEADROOM, 0.0001),
+    max: ACCUMULATION_HEADROOM,
     gradient: toLeafletGradient(config.stops),
   }
 }

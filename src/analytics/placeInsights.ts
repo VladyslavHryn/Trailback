@@ -20,9 +20,12 @@ export function buildDisplayPlaces(
 ): DisplayPlace[] {
   return places.map((place) => {
     const g = geocoded.get(place.clusterId)
-    const displayName = place.semanticLabel
-      ? translateSemanticLabel(place.semanticLabel)
-      : (g?.name ?? `${place.lat.toFixed(3)}, ${place.lng.toFixed(3)}`)
+    // Google's own label first — it knows this is specifically YOUR home,
+    // which no reverse-geocoder can. An unrecognised label translates to
+    // null and falls through rather than being shown raw.
+    const ownLabel = place.semanticLabel ? translateSemanticLabel(place.semanticLabel) : null
+    const displayName =
+      ownLabel ?? g?.name ?? `${place.lat.toFixed(3)}, ${place.lng.toFixed(3)}`
 
     return {
       ...place,

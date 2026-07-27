@@ -3,11 +3,13 @@ import { MapView, type MapLayer } from '../MapView'
 import { MapLayerToggle } from './MapLayerToggle'
 import type { ParsedPoints } from '../../parsing/types'
 import type { DisplayPlace } from '../../analytics/placeInsights'
+import type { HeatScale } from '../../map/aggregateHeatmapPoints'
 
 type MapSectionProps = {
   points: ParsedPoints
   places?: DisplayPlace[]
   layer: MapLayer
+  heatScale?: HeatScale
   onLayerChange: (layer: MapLayer) => void
 }
 
@@ -32,17 +34,28 @@ const CAPTIONS: Record<MapLayer, { eyebrow: string; title: string; body: string 
   },
 }
 
-export function MapSection({ points, places, layer, onLayerChange }: MapSectionProps) {
+export function MapSection({
+  points,
+  places,
+  layer,
+  heatScale,
+  onLayerChange,
+}: MapSectionProps) {
   const caption = CAPTIONS[layer]
 
   return (
     <section className="relative h-svh w-full">
-      <MapView
-        points={points}
-        places={places}
-        layer={layer}
-        scrollWheelZoom={false}
-      />
+      {/* The map is the section's BACKGROUND, taken out of the flow so the
+          caption below can be the in-flow child and therefore stick. */}
+      <div className="absolute inset-0">
+        <MapView
+          points={points}
+          places={places}
+          layer={layer}
+          heatScale={heatScale}
+          scrollWheelZoom={false}
+        />
+      </div>
 
       {/* Gradient scrims top and bottom: the caption needs a readable
           backing, but a solid panel over a full-bleed map would undo the
@@ -60,8 +73,28 @@ export function MapSection({ points, places, layer, onLayerChange }: MapSectionP
           content column, rather than centred over the map — the map is the
           full-bleed element, so the type has to hold the alignment.
           `pointer-events-none` on the wrapper, restored on the toggle itself,
-          so the caption never intercepts a drag of the map underneath it. */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 px-6 pt-28 md:px-10 md:pt-32">
+          so the caption never intercepts a drag of the map underneath it.
+
+          STICKY, not pinned to the top of the section. This screen is a full
+          viewport tall and the layer switcher is the only control on it, so
+          anchoring it to the section's top meant it left the screen after
+          about a third of the section's scroll — measured, it sat at -22px
+          only 300px in. What remained was a bare map with no caption, no
+          switcher and no way to tell that "Топ місць" and "Маршрути" exist at
+          all. Sticking it under the header keeps the control on screen for
+          exactly as long as the map it controls is.
+
+          `top` clears the fixed header BY MEASUREMENT rather than a constant:
+          the header gains a row of month chips whenever a year is selected,
+          so any fixed offset is wrong in one of the two states.
+
+          z-800 sits above every Leaflet map pane (they run to 700), so the
+          caption is never printed under a marker, and below Leaflet's own
+          control corners (1000) and the header (1100). */}
+      <div
+        className="pointer-events-none sticky z-[800] px-6 md:px-10"
+        style={{ top: 'calc(var(--trail-header-h, 9rem) + 2rem)' }}
+      >
         <div className="mx-auto grid w-full max-w-7xl md:grid-cols-[7rem_minmax(0,1fr)] md:gap-x-12 lg:grid-cols-[9rem_minmax(0,1fr)]">
           <Reveal>
             <div>

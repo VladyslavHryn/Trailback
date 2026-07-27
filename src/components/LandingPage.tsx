@@ -3,14 +3,22 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import L from 'leaflet'
 import {
   AlertTriangle,
-  FileArchive,
+  ArrowDownToLine,
+  FileJson,
   History,
+  Layers,
   Map as MapIcon,
+  Repeat,
   ShieldCheck,
-  Sparkles,
-  UploadCloud,
   X,
 } from 'lucide-react'
+
+/* One stroke weight for every icon on this screen. Lucide's default 2 at the
+   two sizes used here (16px in a chip, 20px in the drop zone) is solid enough
+   to read as drawn rather than sketched; the header wordmark previously ran
+   2.2 and the value chips ran the default, which is the kind of drift that
+   makes an icon set look borrowed instead of specified. */
+const ICON_STROKE = 2
 import { TILE_URL, TILE_ATTRIBUTION, createPulseIcon } from './MapView'
 
 const GUIDE_STEPS = [
@@ -32,19 +40,20 @@ const GUIDE_STEPS = [
   },
 ]
 
+/* Three promises, deliberately parallel: each is a noun phrase of four to six
+   words, so the eye reads them as one set rather than three sentences of
+   different lengths. The previous copy ran 8-10 words each with the qualifier
+   trailing ("..., яких ти сам за собою не помічав"), which buries the payload
+   at the end of the line on a screen the reader scans in about three seconds.
+
+   The icons carry NO colour of their own — see the chip in the markup, where
+   all three are rendered at one size in the single accent. Three different
+   hues across three items of one semantic group ("what you get") reads as
+   decoration, not as meaning. */
 const VALUE_POINTS = [
-  {
-    icon: MapIcon,
-    text: 'Карта всього твого життя одразу, а не один день, як у Google',
-  },
-  {
-    icon: Sparkles,
-    text: 'Звички й закономірності, яких ти сам за собою не помічав',
-  },
-  {
-    icon: History,
-    text: 'Місця, що зникли з твого життя, і нові, що з’явились',
-  },
+  { icon: Layers, text: 'Вся карта одразу, не по днях' },
+  { icon: Repeat, text: 'Звички, які ти не помічав сам' },
+  { icon: History, text: 'Місця, що з’явились і зникли' },
 ]
 
 type LandingPageProps = {
@@ -82,133 +91,195 @@ export function LandingPage({
   }
 
   return (
-    <div className="relative flex min-h-svh flex-col overflow-hidden bg-ink-950 text-ink-50">
-      <AmbientBackground />
-
+    /* No local background fill. The page-level wash (one accent radial, in
+       index.css) is allowed through instead of being covered by an opaque
+       ink-950 panel and then re-decorated with floating coloured dots. */
+    <div className="relative flex min-h-svh flex-col text-ink-50">
       <header className="relative z-10 flex items-center justify-between px-6 py-6 md:px-10">
         <div className="flex items-center gap-2 font-display text-lg font-semibold">
-          <MapIcon className="h-5 w-5 text-trail-400" strokeWidth={2.2} />
+          <MapIcon className="h-5 w-5 text-trail-400" strokeWidth={ICON_STROKE} />
           Trailback
         </div>
       </header>
 
-      <main className="relative z-10 flex flex-1 flex-col items-center px-6 py-10 md:py-14">
-        <div className="grid w-full max-w-5xl gap-10 md:grid-cols-2 md:items-center md:gap-14">
-          <div className="text-center md:text-left">
-            <span className="inline-flex items-center gap-2 rounded-full border border-trail-500/40 bg-trail-500/10 px-3 py-1 text-xs font-medium text-trail-300">
+      <main className="relative z-10 flex flex-1 flex-col items-center px-6 pb-16 pt-2 md:px-10">
+        {/* ONE column of reading that ENDS at the drop zone, with the live demo
+            beside it — rather than a two-column hero followed by a centred
+            upload card, which put the only action the screen asks for outside
+            the flow the reader was following. */}
+        <div className="grid w-full max-w-6xl items-start gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16">
+          <div className="flex flex-col">
+            {/* Mono + caps: a system notice, in a different voice from both
+                the headline and the body. */}
+            <span className="text-label self-start rounded-full border border-trail-500/40 bg-trail-500/10 px-3 py-1.5 text-trail-300">
               Google видаляє хмарний Timeline
             </span>
 
-            <h1 className="mt-5 font-display text-4xl font-semibold leading-[1.1] tracking-tight text-ink-50 md:text-5xl">
-              Врятуй свою геоісторію,
-              <br />
-              поки Google її не стер
+            {/* The non-breaking space before the dash is load-bearing: without
+                it the line broke as "…геоісторія" / "— на одній карті", and a
+                dash must never open a line. It now breaks after the dash. */}
+            <h1 className="text-balance mt-6 font-display text-title-lg font-bold leading-[1.04] text-ink-50">
+              Вся твоя геоісторія&nbsp;— на одній карті
             </h1>
 
-            <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-ink-400 md:mx-0">
-              Твій телефон роками тихо записував, де ти був. Google от-от
-              видалить цю історію назавжди. Завантаж її сюди — і побач своє
-              життя однією картою: улюблені місця, звички та маршрути, яких
-              сам би ніколи не помітив.
+            <p className="mt-5 max-w-[48ch] text-body-lg leading-relaxed text-ink-400">
+              Google Timeline показує лише один день за раз. Завантаж свій
+              експорт — побач роки маршрутів одразу.
             </p>
 
-            <ul className="mx-auto mt-6 flex max-w-md flex-col gap-3 text-left md:mx-0">
+            {/* Bare icons, NO chip. These three had the identical treatment as
+                the drop zone's icon — same rounded square, same border, same
+                accent fill — which put a decorative list marker and the one
+                functional control of the screen in the same visual class. The
+                container is now what marks something as ACTIONABLE, and it is
+                spent only there. These also drop to trail-500 and 18px: a list
+                marker should sit under the thing it is listing, not compete. */}
+            <ul className="mt-8 flex flex-col gap-3">
               {VALUE_POINTS.map(({ icon: Icon, text }) => (
-                <li key={text} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-signal-500/10 text-signal-400">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="text-sm leading-relaxed text-ink-200">
+                <li key={text} className="flex items-center gap-3">
+                  <Icon
+                    className="h-[18px] w-[18px] shrink-0 text-trail-500"
+                    strokeWidth={ICON_STROKE}
+                  />
+                  <span className="text-body font-medium text-ink-200">
                     {text}
                   </span>
                 </li>
               ))}
             </ul>
+
+            {/* A SOLID hairline, not a dashed rectangle. The dashed border is
+                the single most reproduced drag-and-drop treatment there is; a
+                1px solid edge that picks up the accent on hover and on
+                drag-over says the same thing and looks specified. */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault()
+                setIsDragActive(true)
+              }}
+              onDragLeave={() => setIsDragActive(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setIsDragActive(false)
+                handleFiles(e.dataTransfer.files)
+              }}
+              className={`mt-9 rounded-2xl border px-5 py-6 transition-colors duration-200 sm:px-6 ${
+                isDragActive
+                  ? 'border-trail-400 bg-trail-500/[0.09]'
+                  : 'border-ink-700 bg-ink-900/50 hover:border-trail-500/55'
+              }`}
+            >
+              <div className="flex items-start gap-4">
+                {/* Not a cloud-with-an-up-arrow. Beyond being the default
+                    choice, "upload to a cloud" is the one thing this product
+                    promises it never does — the file stays in the browser. A
+                    plain downward arrow to a line describes the actual
+                    gesture: drop it here. */}
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${
+                    isDragActive
+                      ? 'border-trail-400/60 bg-trail-500/15 text-trail-300'
+                      : 'border-ink-700 bg-ink-950/60 text-trail-400'
+                  }`}
+                >
+                  <ArrowDownToLine className="h-5 w-5" strokeWidth={ICON_STROKE} />
+                </span>
+
+                <div className="min-w-0">
+                  <p className="text-body-lg font-semibold leading-snug text-ink-50">
+                    Перетягни файл сюди
+                  </p>
+                  {/* Filenames are data, so they are set in the data face —
+                      and left in their real case, since these are literal
+                      names the reader has to match. */}
+                  <p className="mt-1.5 font-mono text-caption leading-relaxed text-ink-400">
+                    Records.json або Timeline.json (розпакований з архіву
+                    Takeout)
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-3">
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  className="inline-flex items-center gap-2 rounded-lg bg-trail-500 px-5 py-2.5 text-body font-semibold text-ink-950 transition-colors hover:bg-trail-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-trail-300"
+                >
+                  {/* A JSON document — which is literally what this button
+                      opens a picker for. It was FileArchive, an icon for a
+                      zip: it reads as a phone-shaped rounded rectangle at
+                      16px and pointed at the archive, not at the one file
+                      that has to come out of it. */}
+                  <FileJson className="h-4 w-4" strokeWidth={ICON_STROKE} />
+                  Обрати файл
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onDemo}
+                  className="rounded-sm text-caption text-ink-400 underline decoration-ink-700 underline-offset-4 transition-colors hover:text-trail-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-trail-300"
+                >
+                  Переглянути демо-карту
+                </button>
+              </div>
+
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+            </div>
+
+            {displayedError && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-caption text-red-200"
+              >
+                <AlertTriangle
+                  className="mt-0.5 h-4 w-4 shrink-0 text-red-300"
+                  strokeWidth={ICON_STROKE}
+                />
+                <span>{displayedError}</span>
+              </motion.div>
+            )}
+
+            <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-caption text-ink-400">
+              {/* Jade survives here and only here on this screen: it is the
+                  secondary accent, on a reassurance rather than on an action.
+                  Everything the reader can click or is meant to notice is
+                  amber. */}
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck
+                  className="h-4 w-4 text-signal-400"
+                  strokeWidth={ICON_STROKE}
+                />
+                Файл обробляється локально в браузері
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsGuideOpen(true)}
+                className="rounded-sm underline decoration-ink-700 underline-offset-4 transition-colors hover:text-trail-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-trail-300"
+              >
+                Як отримати експорт →
+              </button>
+            </div>
+
+            {/* Stated BEFORE the upload, not after the requests have gone out.
+                The exception is small and worth it, but it is the reader's call
+                to make, and they can only make it if they know about it while
+                the decision is still theirs. Held tertiary by COLOUR rather
+                than by inventing a smaller size off the scale. */}
+            <p className="mt-3 max-w-[56ch] text-caption leading-relaxed text-ink-600">
+              Виняток один: щоб підписати топ-місця назвами й районами, до
+              OpenStreetMap піде кілька десятків округлених координат. Ніколи
+              не сам файл.
+            </p>
           </div>
 
           <HeroDemo />
-        </div>
-
-        <div className="mt-12 w-full max-w-xl">
-          <div
-            onDragOver={(e) => {
-              e.preventDefault()
-              setIsDragActive(true)
-            }}
-            onDragLeave={() => setIsDragActive(false)}
-            onDrop={(e) => {
-              e.preventDefault()
-              setIsDragActive(false)
-              handleFiles(e.dataTransfer.files)
-            }}
-            className={`flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-colors ${
-              isDragActive
-                ? 'border-trail-400 bg-trail-500/10'
-                : 'border-ink-700 bg-ink-900/60'
-            }`}
-          >
-            <UploadCloud
-              className={`h-9 w-9 ${isDragActive ? 'text-trail-300' : 'text-ink-400'}`}
-            />
-            <div>
-              <p className="text-base font-medium text-ink-50">
-                Перетягни файл експорту Google сюди
-              </p>
-              <p className="mt-1 text-sm text-ink-400">
-                Records.json або Timeline.json (розпакований з архіву Takeout)
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="inline-flex items-center gap-2 rounded-lg bg-trail-500 px-5 py-2.5 text-sm font-medium text-ink-950 transition hover:bg-trail-400"
-            >
-              <FileArchive className="h-4 w-4" />
-              Обрати файл
-            </button>
-
-            <button
-              type="button"
-              onClick={onDemo}
-              className="text-xs text-ink-400 underline decoration-ink-700 underline-offset-4 transition hover:text-trail-300"
-            >
-              Переглянути демо-карту
-            </button>
-
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".json"
-              className="hidden"
-              onChange={(e) => handleFiles(e.target.files)}
-            />
-          </div>
-
-          {displayedError && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-4 flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200"
-            >
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
-              <span>{displayedError}</span>
-            </motion.div>
-          )}
-
-          <div className="mt-4 flex flex-col items-center gap-2 text-xs text-ink-400 sm:flex-row sm:justify-center sm:gap-4">
-            <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-signal-400" />
-              Файл обробляється локально в браузері
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsGuideOpen(true)}
-              className="text-ink-400 underline decoration-ink-700 underline-offset-4 transition hover:text-trail-300"
-            >
-              Як отримати експорт →
-            </button>
-          </div>
         </div>
       </main>
 
@@ -259,7 +330,7 @@ function GuideModal({
                 type="button"
                 onClick={onClose}
                 aria-label="Закрити"
-                className="rounded-md p-1 text-ink-400 transition hover:text-trail-300"
+                className="rounded-md p-1 text-ink-400 transition hover:text-trail-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-trail-300"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -299,17 +370,92 @@ function GuideModal({
 
 const DEMO_DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт']
 
-// Ordered by angle around the group's centroid (not by name or visit time) —
-// connecting real landmarks in an arbitrary order makes the route zigzag
-// and cross itself, while an angular sort always traces a clean loop
-// around the cluster with no self-intersections.
-const KYIV_ROUTE: Array<{ lat: number; lng: number }> = [
+type LatLng = { lat: number; lng: number }
+
+// The five recurring places the demo cycles through, ordered by angle around
+// the group's centroid so the loop between them never crosses itself.
+const DEMO_STOPS: LatLng[] = [
   { lat: 50.4522, lng: 30.5257 }, // Володимирська гірка
   { lat: 50.4649, lng: 30.5183 }, // Контрактова площа
   { lat: 50.4472, lng: 30.5145 }, // Золоті ворота
   { lat: 50.438, lng: 30.5192 }, // Бессарабська площа
   { lat: 50.4501, lng: 30.5234 }, // Майдан Незалежності
 ]
+
+/**
+ * Deterministic pseudo-noise in [-1, 1].
+ *
+ * Deterministic matters: the track is rebuilt on every mount, and a random
+ * one would visibly redraw itself differently each time the landing page
+ * loads, which reads as instability rather than as data.
+ */
+function demoNoise(seed: number): number {
+  const x = Math.sin(seed * 12.9898) * 43758.5453
+  return (x - Math.floor(x)) * 2 - 1
+}
+
+/**
+ * Turns the five stops into a dense, organic track.
+ *
+ * WHY: joining the stops directly drew five ruler-straight lines across the
+ * middle of Kyiv — a stretched triangle that looks like a route someone
+ * planned, not like a path a phone recorded. A real GPS trace is hundreds of
+ * closely-spaced samples that curve between places and wander slightly
+ * around the true line, and that texture is the entire reason the preview is
+ * worth showing at all.
+ *
+ * Each leg is a quadratic Bézier whose control point is pushed out
+ * perpendicular to the leg (alternating sides, so the path snakes rather
+ * than bowing the same way every time), then every sample gets a small
+ * offset on top. The curve is what stops it reading as a straight line; the
+ * per-sample offset is what stops it reading as a perfect curve.
+ */
+function buildDemoTrack(stops: LatLng[], samplesPerLeg = 44): LatLng[] {
+  const track: LatLng[] = []
+  // Closes the loop: the last stop leads back to the first, so the track
+  // reads as a routine that repeats rather than a one-way trip.
+  const legs = stops.length
+
+  for (let leg = 0; leg < legs; leg++) {
+    const a = stops[leg]
+    const b = stops[(leg + 1) % legs]
+
+    const dLat = b.lat - a.lat
+    const dLng = b.lng - a.lng
+
+    // Perpendicular to the leg, so the bulge is always across the direction
+    // of travel regardless of which way the leg runs.
+    const side = leg % 2 === 0 ? 1 : -1
+    const bendLat = -dLng * 0.16 * side
+    const bendLng = dLat * 0.16 * side
+
+    const controlLat = a.lat + dLat / 2 + bendLat
+    const controlLng = a.lng + dLng / 2 + bendLng
+
+    for (let i = 0; i < samplesPerLeg; i++) {
+      const t = i / samplesPerLeg
+      const inv = 1 - t
+
+      // Quadratic Bézier.
+      const lat = inv * inv * a.lat + 2 * inv * t * controlLat + t * t * b.lat
+      const lng = inv * inv * a.lng + 2 * inv * t * controlLng + t * t * b.lng
+
+      // ~15-30 m of wander, which is roughly what consumer GPS actually
+      // produces. Enough to give the line texture, far too small to move it
+      // off the streets it follows.
+      const jitter = 0.00022
+      track.push({
+        lat: lat + demoNoise(leg * 977 + i * 3) * jitter,
+        lng: lng + demoNoise(leg * 977 + i * 3 + 1) * jitter,
+      })
+    }
+  }
+
+  track.push(stops[0])
+  return track
+}
+
+const DEMO_TRACK = buildDemoTrack(DEMO_STOPS)
 
 const DEMO_INSIGHTS = [
   { label: 'Пройдено', value: '2 847 км' },
@@ -335,6 +481,8 @@ function HeroDemo() {
   const markersRef = useRef<L.Marker[]>([])
   const glowLineRef = useRef<L.Polyline | null>(null)
   const lineRef = useRef<L.Polyline | null>(null)
+  // Kept so a resize can RE-FIT, not just re-measure — see the observer below.
+  const boundsRef = useRef<L.LatLngBounds | null>(null)
 
   // Mount a real, non-interactive Leaflet map once — same tiles and marker
   // style as the actual product (MapView), just small and inert.
@@ -357,27 +505,42 @@ function HeroDemo() {
       maxZoom: 20,
     }).addTo(map)
 
-    const latLngs = KYIV_ROUTE.map((p) => [p.lat, p.lng] as [number, number])
-    map.fitBounds(L.latLngBounds(latLngs), { padding: [28, 28] })
+    const latLngs = DEMO_TRACK.map((p) => [p.lat, p.lng] as [number, number])
+    boundsRef.current = L.latLngBounds(latLngs)
+    map.fitBounds(boundsRef.current, { padding: [28, 28] })
 
     // Jade, matching MapView's demo route — a path between places, which is
     // the "place" accent's job; amber stays reserved for density.
+    // `smoothFactor: 0` disables Leaflet's Douglas-Peucker simplification.
+    // It defaults to 1 and is normally a good trade, but it is measured in
+    // screen pixels: at the zoom this preview sits at, the whole 220-sample
+    // track collapsed to THIRTEEN vertices — every curve and every bit of
+    // GPS wander thrown away, leaving precisely the straight-line zigzag the
+    // dense track was built to replace. The detail here IS the content, so
+    // it has to survive to the screen.
     glowLineRef.current = L.polyline(latLngs, {
       color: '#25c79c',
-      weight: 8,
+      weight: 7,
       opacity: 0,
+      smoothFactor: 0,
       className: 'trail-route-glow',
     }).addTo(map)
 
+    // Solid and thin, NOT the marching-dash treatment this used to carry. A
+    // dashed stroke is the convention for a route someone plans; a recorded
+    // track is continuous, and reading as recorded is the whole point of the
+    // preview. The dash also fought the curves, breaking a smooth path into
+    // ticks that drew attention to the geometry instead of the shape.
     lineRef.current = L.polyline(latLngs, {
       color: '#5fdcb9',
-      weight: 2.5,
+      weight: 1.8,
       opacity: 0,
       lineCap: 'round',
-      className: 'trail-route-line',
+      lineJoin: 'round',
+      smoothFactor: 0,
     }).addTo(map)
 
-    markersRef.current = KYIV_ROUTE.map((p) =>
+    markersRef.current = DEMO_STOPS.map((p) =>
       L.marker([p.lat, p.lng], { icon: createPulseIcon(), opacity: 0 }).addTo(
         map,
       ),
@@ -391,10 +554,23 @@ function HeroDemo() {
     }
   }, [])
 
-  // Keep the map sized correctly as the hero grid reflows across breakpoints.
+  // Keep the map sized AND FRAMED as the hero reflows across breakpoints.
+  //
+  // invalidateSize() alone only tells Leaflet the box changed; it holds the
+  // existing centre and zoom. The initial fitBounds ran against whatever box
+  // existed at mount, so once the hero's map grew from a 4:3 thumbnail to a
+  // tall panel, the route ended up framed for a viewport that no longer
+  // existed — the whole five-point loop sat off-screen and the demo showed
+  // empty streets, which is precisely the one thing this element has to prove.
+  // Re-fitting after the resize is what keeps the route in frame at every size.
   useEffect(() => {
     if (!containerRef.current) return
-    const observer = new ResizeObserver(() => mapRef.current?.invalidateSize())
+    const observer = new ResizeObserver(() => {
+      const map = mapRef.current
+      if (!map) return
+      map.invalidateSize()
+      if (boundsRef.current) map.fitBounds(boundsRef.current, { padding: [28, 28] })
+    })
     observer.observe(containerRef.current)
     return () => observer.disconnect()
   }, [])
@@ -456,7 +632,18 @@ function HeroDemo() {
   }, [prefersReducedMotion])
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-ink-700 bg-ink-900/60 shadow-2xl">
+    /* NOT a card. This was a rounded-2xl panel with a 1px ink-700 border and a
+       drop shadow — the identical construction as the drop zone below it, so
+       the product's proof and the user's action carried the same visual weight
+       and the eye had nothing to rank. The frame is gone, the corner radius is
+       small enough not to echo the card, and it is substantially taller: this is
+       a surface the product renders, not an object sitting on the page. The dead
+       area that used to sit under a 4:3 thumbnail goes with it.
+       It aligns to the container edge rather than bleeding. A bleed was tried at
+       +2.5rem and stopped ~100px short of the viewport on a 1440 screen, because
+       the container is centred with max-width — a partial bleed reads as a
+       mis-set margin, not as a decision, so the honest edge is the aligned one. */
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg lg:aspect-auto lg:h-[38rem]">
       <div ref={containerRef} className="absolute inset-0" />
 
       <div className="pointer-events-none absolute inset-0">
@@ -521,73 +708,11 @@ function HeroDemo() {
   )
 }
 
-type Dot = {
-  id: number
-  top: number
-  left: number
-  size: number
-  duration: number
-  delay: number
-  color: string
-}
-
-const AMBIENT_DOTS: Dot[] = [
-  { id: 1, top: 18, left: 12, size: 5, duration: 9, delay: 0, color: '#d97706' },
-  { id: 2, top: 30, left: 82, size: 4, duration: 11, delay: 1.2, color: '#25c79c' },
-  { id: 3, top: 68, left: 20, size: 3.5, duration: 8, delay: 0.6, color: '#7c83f0' },
-  { id: 4, top: 76, left: 70, size: 5, duration: 12, delay: 2, color: '#25c79c' },
-  { id: 5, top: 10, left: 55, size: 3, duration: 10, delay: 1.6, color: '#d97706' },
-  { id: 6, top: 50, left: 90, size: 4, duration: 9.5, delay: 0.4, color: '#7c83f0' },
-  { id: 7, top: 85, left: 40, size: 3.5, duration: 13, delay: 2.4, color: '#25c79c' },
-  { id: 8, top: 42, left: 6, size: 4.5, duration: 10.5, delay: 0.9, color: '#d97706' },
-]
-
-function AmbientBackground() {
-  const prefersReducedMotion = useReducedMotion()
-
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
-    >
-      <div
-        className="absolute inset-0 opacity-40"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-        }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-ink-950 via-transparent to-ink-950" />
-
-      {AMBIENT_DOTS.map((dot) => (
-        <motion.div
-          key={dot.id}
-          className="absolute rounded-full blur-[2px]"
-          style={{
-            top: `${dot.top}%`,
-            left: `${dot.left}%`,
-            width: dot.size * 4,
-            height: dot.size * 4,
-            background: dot.color,
-          }}
-          initial={{ opacity: 0.15 }}
-          animate={
-            prefersReducedMotion
-              ? { opacity: 0.15 }
-              : {
-                  opacity: [0.1, 0.35, 0.1],
-                  y: [0, -14, 0],
-                }
-          }
-          transition={{
-            duration: dot.duration,
-            delay: dot.delay,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-      ))}
-    </div>
-  )
-}
+/* The eight floating blurred dots that used to live here are gone. They were
+   three different hues (amber, jade, and a periwinkle the design system had
+   already declared removed) drifting on infinite loops behind the content —
+   decoration with no function, and the most recognisable "premium" filler
+   pattern in generated UI. The page-level accent wash in index.css supplies
+   the one thing they were nominally for: keeping a large dark area from
+   sitting at a single flat value. Deleting them also stops eight
+   permanently-animating layers from compositing behind the hero. */

@@ -1,7 +1,7 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import { StorySection } from './StorySection'
 import { Reveal } from './Reveal'
-import { formatDaysUniform, formatDuration, visitsWord } from './format'
+import { formatDaysUniform, formatDecimal, formatDuration, visitsWord } from './format'
 import { NumberTicker } from '../ui/NumberTicker'
 import { SpotlightCard } from '../ui/SpotlightCard'
 import { BorderBeam } from '../ui/BorderBeam'
@@ -118,7 +118,7 @@ export function TopPlacesSection({ places, spanDays }: TopPlacesSectionProps) {
                         hoursPerDay < 0.1 && 'invisible',
                       )}
                     >
-                      {hoursPerDay.toFixed(1)} год/день
+                      {formatDecimal(hoursPerDay)} год/день
                     </span>
                   </div>
                 </li>

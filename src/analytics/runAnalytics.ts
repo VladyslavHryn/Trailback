@@ -3,7 +3,8 @@
 // explainable pieces together: sort → distance/journey stats → stay-point
 // detection → spatial clustering of those stays → per-place aggregation.
 
-import type { ParsedPoints } from '../parsing/types'
+import type { FrequentPlace, ParsedPoints } from '../parsing/types'
+import { haversineDistanceMeters } from './geo'
 import { sortPointsByTime } from './sortPointsByTime'
 import { computeDistanceStats, type DistanceStats } from './distanceStats'
 import { detectStayPoints } from './stayPoints'
@@ -39,6 +40,43 @@ export interface AnalyticsResult {
 const CLUSTER_EPS_METERS = 120
 const CLUSTER_MIN_PTS = 4
 
+// How close a clustered place has to be to one of Google's own frequent
+// places before it inherits its label. Matches the clustering radius: any
+// further apart and they are, by this engine's own definition, not the same
+// place.
+const FREQUENT_PLACE_MATCH_METERS = 120
+
+/**
+ * Adopts the HOME/WORK labels Google publishes in `userLocationProfile`.
+ *
+ * The profile is a second, independent source of the same fact that a
+ * visit's `semanticType` carries, and it fills the gaps that one leaves:
+ * a place can be plainly your home while every individual visit to it came
+ * back UNKNOWN. Existing labels win — a per-visit semanticType is evidence
+ * about the visits that actually built this cluster, whereas the profile is
+ * a statement about the account as a whole.
+ */
+function applyFrequentPlaceLabels(
+  places: Place[],
+  frequentPlaces: FrequentPlace[],
+): Place[] {
+  if (frequentPlaces.length === 0) return places
+
+  return places.map((place) => {
+    if (place.semanticLabel) return place
+
+    let best: { label: string; meters: number } | null = null
+    for (const frequent of frequentPlaces) {
+      if (!frequent.label) continue
+      const meters = haversineDistanceMeters(place.lat, place.lng, frequent.lat, frequent.lng)
+      if (meters > FREQUENT_PLACE_MATCH_METERS) continue
+      if (!best || meters < best.meters) best = { label: frequent.label, meters }
+    }
+
+    return best ? { ...place, semanticLabel: best.label } : place
+  })
+}
+
 export function runAnalytics(rawPoints: ParsedPoints): AnalyticsResult {
   const points = sortPointsByTime(rawPoints)
 
@@ -64,7 +102,10 @@ export function runAnalytics(rawPoints: ParsedPoints): AnalyticsResult {
     minPts: CLUSTER_MIN_PTS,
   })
 
-  const places = buildPlaces(stays, stayLabels)
+  const places = applyFrequentPlaceLabels(
+    buildPlaces(stays, stayLabels),
+    points.frequentPlaces,
+  )
 
   const footprintByMonth = computeFootprintByMonth(points)
   const datasetStartSec = points.timestampSec[0]

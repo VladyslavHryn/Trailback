@@ -1,4 +1,13 @@
-import { ArrowUp, Car, Footprints, Mountain, RotateCcw, Route, TramFront } from 'lucide-react'
+import {
+  ArrowUp,
+  Car,
+  Footprints,
+  Mountain,
+  RotateCcw,
+  Route,
+  Shuffle,
+  TramFront,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { StorySection } from './StorySection'
 import { Reveal } from './Reveal'
@@ -75,8 +84,13 @@ function StatCard({
 }
 
 export function OutroSection({ distance, onLoadAnother }: OutroSectionProps) {
-  const totalKm =
-    distance.totalKmByMode.walk + distance.totalKmByMode.transit + distance.totalKmByMode.drive
+  // `other` is included in the total even though it has no tile of its own
+  // below unless it's non-zero: Google's activity vocabulary is open-ended
+  // (cycling, flying, sailing…), and quietly dropping whatever doesn't fit
+  // three buckets would make the headline number disagree with the tiles
+  // under it in a way nobody could account for.
+  const modes = distance.totalKmByMode
+  const totalKm = modes.walk + modes.transit + modes.drive + modes.other
 
   return (
     <StorySection eyebrow="Підсумок" index="07">
@@ -111,7 +125,7 @@ export function OutroSection({ distance, onLoadAnother }: OutroSectionProps) {
         <Reveal index={0} className="md:col-span-2">
           <StatCard
             label="Пішки"
-            value={distance.totalKmByMode.walk}
+            value={modes.walk}
             suffix=" км"
             icon={Footprints}
             index={0}
@@ -120,7 +134,7 @@ export function OutroSection({ distance, onLoadAnother }: OutroSectionProps) {
         <Reveal index={1} className="md:col-span-2">
           <StatCard
             label="Транспортом"
-            value={distance.totalKmByMode.transit}
+            value={modes.transit}
             suffix=" км"
             icon={TramFront}
             index={1}
@@ -129,12 +143,25 @@ export function OutroSection({ distance, onLoadAnother }: OutroSectionProps) {
         <Reveal index={2} className="md:col-span-2">
           <StatCard
             label="За кермом"
-            value={distance.totalKmByMode.drive}
+            value={modes.drive}
             suffix=" км"
             icon={Car}
             index={2}
           />
         </Reveal>
+
+        {modes.other > 0 && (
+          <Reveal index={3} className="md:col-span-2">
+            <StatCard
+              label="Інше"
+              value={modes.other}
+              suffix=" км"
+              meta="велосипед, літак та інші види руху"
+              icon={Shuffle}
+              index={3}
+            />
+          </Reveal>
+        )}
 
         {distance.farthestDay && (
           <Reveal index={3} className="md:col-span-3">

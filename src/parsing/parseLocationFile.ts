@@ -1,6 +1,13 @@
-import { createArrayElementExtractor } from './jsonArrayStream'
-import { FORMAT_KEYS, normalizeRecord, type FormatKey } from './googleLocationFormats'
-import { LocationParseError, type ParseProgress, type ParsedPoints } from './types'
+import { createArrayElementExtractor, createObjectCapture } from './jsonArrayStream'
+import { FORMAT_KEYS, normalizeRecord, parseLatLng, type FormatKey } from './googleLocationFormats'
+import {
+  LocationParseError,
+  type ActivityRecord,
+  type FrequentPlace,
+  type ParseProgress,
+  type ParsedPoints,
+  type TripRecord,
+} from './types'
 
 // Give up looking for a recognizable array key after this many bytes —
 // a well-formed export always has one of FORMAT_KEYS very close to the
@@ -8,18 +15,55 @@ import { LocationParseError, type ParseProgress, type ParsedPoints } from './typ
 // a Google location-history export.
 const SEEK_LIMIT_BYTES = 4 * 1024 * 1024
 
+// The one top-level object worth reading besides the segments themselves.
+// `rawSignals`, the other sibling, is deliberately never touched: thousands
+// of low-level activity samples with confidence scores, too noisy to drive
+// any figure this product shows.
+const PROFILE_KEY = 'userLocationProfile'
+
+/** Pulls the HOME/WORK-labelled places out of a captured profile object. */
+function readFrequentPlaces(profileJson: string): FrequentPlace[] {
+  let profile: any
+  try {
+    profile = JSON.parse(profileJson)
+  } catch {
+    // A profile we can't read costs labels, not the parse.
+    return []
+  }
+
+  const raw = profile?.frequentPlaces
+  if (!Array.isArray(raw)) return []
+
+  const places: FrequentPlace[] = []
+  for (const entry of raw) {
+    const coords = parseLatLng(entry?.placeLocation?.latLng ?? entry?.placeLocation)
+    if (!coords) continue
+    const label = typeof entry?.label === 'string' && entry.label.trim() !== ''
+      ? entry.label.trim().toUpperCase()
+      : null
+    places.push({ ...coords, label })
+  }
+  return places
+}
+
 export async function parseLocationFile(
   file: File,
   onProgress: (progress: ParseProgress) => void,
 ): Promise<ParsedPoints> {
   // Parallel primitive arrays ("structure of arrays") instead of an array of
-  // {lat, lng, timestampSec} objects — pushing raw numbers avoids one object
-  // allocation per point, which matters when a single export can contain
-  // millions of raw GPS pings.
+  // {lat, lng, timestampSec} objects. For a multi-hundred-MB export with
+  // millions of points, one JS object per point costs far more memory than
+  // flat numeric buffers.
   const lats: number[] = []
   const lngs: number[] = []
   const timesSec: number[] = []
+  const sources: number[] = []
   const semanticLabels: (string | null)[] = []
+
+  // Whole records rather than points — see ActivityRecord for why the
+  // distance must come from Google's own figure.
+  const activities: ActivityRecord[] = []
+  const trips: TripRecord[] = []
 
   let recordsSeen = 0
   let recordsSkipped = 0
@@ -41,18 +85,29 @@ export async function parseLocationFile(
       return
     }
 
-    const points = normalizeRecord(extractor.matchedKey as FormatKey, parsed)
-    if (points.length === 0) {
-      recordsSkipped++
+    const record = normalizeRecord(extractor.matchedKey as FormatKey, parsed)
+
+    if (record.activity) activities.push(record.activity)
+    if (record.trip) trips.push(record.trip)
+
+    if (record.points.length === 0) {
+      // A segment can legitimately carry no coordinates at all (a memory is
+      // the clearest case) and still have contributed above, so it only
+      // counts as skipped when it yielded nothing whatsoever.
+      if (!record.activity && !record.trip) recordsSkipped++
       return
     }
-    for (const point of points) {
+
+    for (const point of record.points) {
       lats.push(point.lat)
       lngs.push(point.lng)
       timesSec.push(point.timestampSec)
+      sources.push(point.source)
       semanticLabels.push(point.semanticLabel ?? null)
     }
   })
+
+  const profileCapture = createObjectCapture(PROFILE_KEY)
 
   const totalBytes = file.size
   let bytesRead = 0
@@ -71,6 +126,13 @@ export async function parseLocationFile(
       const text = decoder.decode(value, { stream: true })
       extractor.push(text)
 
+      // Only the Timeline export has a profile, and only it is worth reading
+      // past the end of the segments for. A legacy Records.json has no
+      // profile, so it still stops the moment its array closes rather than
+      // streaming through hundreds of megabytes for nothing.
+      const wantsProfile = extractor.matchedKey === 'semanticSegments'
+      if (wantsProfile) profileCapture.push(text)
+
       if (!extractor.matchedKey && bytesRead > SEEK_LIMIT_BYTES) {
         throw new LocationParseError(
           'unrecognized-format',
@@ -86,11 +148,14 @@ export async function parseLocationFile(
         pointsFound: lats.length,
       })
 
-      if (extractor.isDone) break
+      if (extractor.isDone && (!wantsProfile || profileCapture.isDone)) break
     }
 
     const tail = decoder.decode() // flush any trailing buffered bytes
-    if (tail) extractor.push(tail)
+    if (tail) {
+      extractor.push(tail)
+      if (extractor.matchedKey === 'semanticSegments') profileCapture.push(tail)
+    }
   } finally {
     reader.releaseLock()
   }
@@ -116,7 +181,13 @@ export async function parseLocationFile(
     // memory of a timestamp column compared to storing milliseconds as
     // float64, which adds up across millions of points.
     timestampSec: Uint32Array.from(timesSec),
+    sources: Uint8Array.from(sources),
     semanticLabels,
+    activities,
+    trips,
+    frequentPlaces: profileCapture.captured
+      ? readFrequentPlaces(profileCapture.captured)
+      : [],
     format: extractor.matchedKey,
     recordsSeen,
     recordsSkipped,

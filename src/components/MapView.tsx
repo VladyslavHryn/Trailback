@@ -2,9 +2,15 @@ import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import '../map/registerLeafletHeat'
 import type { ParsedPoints } from '../parsing/types'
+import { movementPoints } from '../parsing/selectPoints'
 import type { DisplayPlace } from '../analytics/placeInsights'
 import { districtShade } from '../analytics/placeInsights'
-import { aggregateHeatmapPoints } from '../map/aggregateHeatmapPoints'
+import { formatDecimal } from './story/format'
+import {
+  aggregateHeatmapPoints,
+  computeHeatScale,
+  type HeatScale,
+} from '../map/aggregateHeatmapPoints'
 import { buildRoutes } from '../map/buildRoutes'
 import { HEAT_CONFIG, toLeafletOptions } from '../map/heatConfig'
 
@@ -55,7 +61,7 @@ function createPlaceIcon(rank: number, color: string, label: string | null) {
 function formatVisitDuration(seconds: number): string {
   const hours = seconds / 3600
   if (hours >= 24) return `${Math.round(hours / 24)} дн`
-  if (hours >= 1) return `${hours.toFixed(1)} год`
+  if (hours >= 1) return `${formatDecimal(hours)} год`
   return `${Math.round(seconds / 60)} хв`
 }
 
@@ -133,6 +139,14 @@ type MapViewProps = {
   places?: DisplayPlace[]
   layer?: MapLayer
   /**
+   * The colour scale to draw the heatmap against, derived from the FULL
+   * history rather than from `points`. Passing it in is what makes periods
+   * comparable — see HeatScale. Optional so the map still works standalone
+   * (the landing page's demo); it then falls back to scaling `points`
+   * against themselves, which is correct when they are the whole history.
+   */
+  heatScale?: HeatScale
+  /**
    * Off inside the scroll-story: a full-height map that captures the wheel
    * would swallow the page scroll and trap the reader on that screen, with
    * no way to continue. Zoom stays available via the +/- controls and
@@ -145,6 +159,7 @@ export function MapView({
   points,
   places,
   layer = 'heat',
+  heatScale,
   scrollWheelZoom = true,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -308,7 +323,18 @@ export function MapView({
         // (which only ever shows one day at a time) — see
         // aggregateHeatmapPoints for why raw pings are grid-aggregated first
         // rather than fed to the heat layer directly or just downsampled.
-        const { points: heatPoints, maxIntensity } = aggregateHeatmapPoints(points)
+        //
+        // MOVEMENT POINTS ONLY. A visit is expanded into many samples at one
+        // coordinate so the stay detector can measure it, which is right for
+        // that job and ruinous here: dozens of identical coordinates land in
+        // a single grid cell and burn it to the top of the scale, so a map
+        // meant to show where a life was spent turned into one blazing dot
+        // per visit with the actual movement invisible around it.
+        const track = movementPoints(points)
+        const { points: heatPoints } = aggregateHeatmapPoints(
+          track,
+          heatScale ?? computeHeatScale(track),
+        )
 
         // Belt-and-suspenders on top of the invalidateSize()/ResizeObserver
         // in the mount effect: if the container still measures 0x0 at this
@@ -327,7 +353,7 @@ export function MapView({
           // why each value is what it is.
           heatLayerRef.current = L.heatLayer(
             heatPoints,
-            toLeafletOptions(HEAT_CONFIG, maxIntensity),
+            toLeafletOptions(HEAT_CONFIG),
           ).addTo(layerGroup)
         }
         addHeatLayerWhenSized(20)
@@ -340,8 +366,10 @@ export function MapView({
         // blob and destroy exactly that; low-opacity because overlapping
         // passes then accumulate, so a commute driven three hundred times
         // reads brighter than a road taken once, for free.
+        // Same reason as the heatmap: a run of identical visit samples draws
+        // as a stationary knot in the middle of a path that never stopped.
         const renderer = L.canvas({ padding: 0.4 })
-        for (const segment of buildRoutes(points)) {
+        for (const segment of buildRoutes(movementPoints(points))) {
           L.polyline(segment, {
             renderer,
             color: '#5fdcb9',
@@ -386,7 +414,7 @@ export function MapView({
     return () => {
       cancelled = true
     }
-  }, [points, layer])
+  }, [points, layer, heatScale])
 
   // Place markers live in their own layer/effect, separate from the
   // heatmap — analytics finishes well after the heatmap is already showing

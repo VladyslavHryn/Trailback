@@ -6,9 +6,10 @@
 // apply first.
 
 import { haversineDistanceMeters } from './geo'
-import type { ParsedPoints } from '../parsing/types'
+import { movementPoints } from '../parsing/selectPoints'
+import type { ParsedPoints, TravelMode } from '../parsing/types'
 
-export type TravelMode = 'walk' | 'transit' | 'drive'
+export type { TravelMode }
 
 export interface JourneyStat {
   km: number
@@ -21,6 +22,10 @@ export interface DistanceStats {
   totalKmByMode: Record<TravelMode, number>
   farthestDay: { dateISO: string; km: number } | null
   longestJourney: JourneyStat | null
+  /** True when the mode split came from Google's own activity labels rather
+   * than from the speed heuristic — the UI says so, because the two are not
+   * equally trustworthy. */
+  modesFromGoogle: boolean
 }
 
 // Google's raw location pings don't reliably carry its own activity-
@@ -60,11 +65,48 @@ function classifyMode(kmh: number): TravelMode {
   return 'drive'
 }
 
-/** Precondition: `points` is sorted by timestampSec ascending. */
-export function computeDistanceStats(points: ParsedPoints): DistanceStats {
+function emptyModeTotals(): Record<TravelMode, number> {
+  return { walk: 0, transit: 0, drive: 0, other: 0 }
+}
+
+/**
+ * Precondition: `points` is sorted by timestampSec ascending.
+ *
+ * THE DISTANCES AND THE JOURNEYS COME FROM DIFFERENT PLACES, on purpose.
+ *
+ * When the export carries `activity` segments (every modern Timeline export
+ * does), the mode split is taken from them: Google states both the mode and
+ * the distance it actually covered, and both are strictly better than what
+ * this file can infer. The speed heuristic below cannot tell a bus in
+ * traffic from a brisk walk, and on the reference export it put 100% of the
+ * kilometres into "walking" — the summary screen read 4,023 km on foot and
+ * zero by any other means, which is nonsense on a history full of labelled
+ * subway and bus rides.
+ *
+ * The per-day maximum and the longest journey still come from the point
+ * stream, because they are questions about the timeline's shape rather than
+ * about totals, and activities alone are too sparse to answer them.
+ *
+ * The heuristic remains the fallback for the legacy `locations` export,
+ * which carries no activity labels at all.
+ */
+export function computeDistanceStats(rawPoints: ParsedPoints): DistanceStats {
+  // Visit samples sit at one coordinate by construction, so they contribute
+  // no distance — but they DO sit between two real fixes and would break a
+  // journey in half and distort the implied speed on either side of it.
+  const points = movementPoints(rawPoints)
+
   const n = points.lat.length
-  const totalKmByMode: Record<TravelMode, number> = { walk: 0, transit: 0, drive: 0 }
+  const totalKmByMode = emptyModeTotals()
   const kmByDate = new Map<string, number>()
+
+  const activities = rawPoints.activities
+  const modesFromGoogle = activities.length > 0
+  if (modesFromGoogle) {
+    for (const activity of activities) {
+      totalKmByMode[activity.mode] += activity.distanceMeters / 1000
+    }
+  }
 
   let journeyStartSec = n > 0 ? points.timestampSec[0] : 0
   let journeyKm = 0
@@ -102,7 +144,7 @@ export function computeDistanceStats(points: ParsedPoints): DistanceStats {
 
     if (kmh > MAX_PLAUSIBLE_KMH) continue // glitch or flight — don't count it
 
-    totalKmByMode[classifyMode(kmh)] += km
+    if (!modesFromGoogle) totalKmByMode[classifyMode(kmh)] += km
     if (kmh >= STATIONARY_KMH) journeyKm += km
 
     const dateISO = new Date(points.timestampSec[i] * 1000).toISOString().slice(0, 10)
@@ -115,5 +157,21 @@ export function computeDistanceStats(points: ParsedPoints): DistanceStats {
     if (!farthestDay || km > farthestDay.km) farthestDay = { dateISO, km }
   }
 
-  return { totalKmByMode, farthestDay, longestJourney: bestJourney }
+  // Google's own "you travelled far" memories beat anything reconstructed
+  // from the track: a trip it flagged carries a stated distance from home,
+  // whereas the journey above is only the longest unbroken run of pings,
+  // which a single dropped fix can cut in half.
+  let longestJourney = bestJourney as JourneyStat | null
+  for (const trip of rawPoints.trips) {
+    if (!longestJourney || trip.distanceFromOriginKm > longestJourney.km) {
+      longestJourney = {
+        km: trip.distanceFromOriginKm,
+        durationSec: trip.endSec - trip.startSec,
+        startSec: trip.startSec,
+        endSec: trip.endSec,
+      }
+    }
+  }
+
+  return { totalKmByMode, farthestDay, longestJourney, modesFromGoogle }
 }

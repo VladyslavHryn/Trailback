@@ -168,13 +168,26 @@ export async function geocodePlaceCenters(
 // preferred over a geocoded name when present — it's free, instant (no
 // network round-trip), and Google already knows it's specifically YOUR
 // home/work, which Nominatim has no way to know.
+// Keys are Google's values as a CURRENT export writes them: SCREAMING_SNAKE
+// (HOME, INFERRED_WORK). This map used to be keyed on title case ("Home",
+// "Inferred Work"), which matched nothing at all in a real file — on the
+// reference export that silently cost every one of its 63 HOME and 11
+// INFERRED_WORK labels, and the places they belonged to fell back to a
+// reverse-geocoded street name.
 const SEMANTIC_LABEL_UK: Record<string, string> = {
-  Home: 'Дім',
-  Work: 'Робота',
-  'Inferred Home': 'Дім (ймовірно)',
-  'Inferred Work': 'Робота (ймовірно)',
+  HOME: 'Дім',
+  WORK: 'Робота',
+  INFERRED_HOME: 'Дім (ймовірно)',
+  INFERRED_WORK: 'Робота (ймовірно)',
+  SCHOOL: 'Навчання',
+  INFERRED_SCHOOL: 'Навчання (ймовірно)',
 }
 
-export function translateSemanticLabel(label: string): string {
-  return SEMANTIC_LABEL_UK[label] ?? label
+/**
+ * Returns null for anything unrecognised rather than the raw string. A
+ * leaked `SEARCHED_ADDRESS` on a screen headed "your places" reads as a bug,
+ * and the caller already has a better fallback: the geocoded name.
+ */
+export function translateSemanticLabel(label: string): string | null {
+  return SEMANTIC_LABEL_UK[label.toUpperCase()] ?? null
 }

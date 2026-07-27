@@ -14,14 +14,16 @@ export function sortPointsByTime(points: ParsedPoints): ParsedPoints {
   const lat = new Float64Array(n)
   const lng = new Float64Array(n)
   const timestampSec = new Uint32Array(n)
+  const sources = new Uint8Array(n)
   const semanticLabels = new Array<string | null>(n)
   for (let i = 0; i < n; i++) {
     const src = order[i]
     lat[i] = points.lat[src]
     lng[i] = points.lng[src]
     timestampSec[i] = points.timestampSec[src]
+    sources[i] = points.sources[src]
     semanticLabels[i] = points.semanticLabels[src]
   }
 
-  return { ...points, lat, lng, timestampSec, semanticLabels }
+  return { ...points, lat, lng, timestampSec, sources, semanticLabels }
 }

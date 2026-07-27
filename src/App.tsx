@@ -8,6 +8,8 @@ import { useLocationParser } from './hooks/useLocationParser'
 import { useAnalytics } from './hooks/useAnalytics'
 import { useGeocoding } from './hooks/useGeocoding'
 import { buildDisplayPlaces } from './analytics/placeInsights'
+import { computeHeatScale } from './map/aggregateHeatmapPoints'
+import { movementPoints } from './parsing/selectPoints'
 import {
   ALL_TIME,
   filterPointsByRange,
@@ -55,6 +57,17 @@ function App() {
     [parsedPoints, range],
   )
 
+  // Derived from the WHOLE history and deliberately not from `visiblePoints`,
+  // so every period is drawn against one fixed scale and a quiet month
+  // renders quiet instead of renormalising itself back to full brightness.
+  // One extra binning pass per file, not per filter change.
+  // Measured over the SAME subset the heatmap draws (movement only), or the
+  // scale would be anchored to visit density the map never renders.
+  const heatScale = useMemo(
+    () => (parsedPoints ? computeHeatScale(movementPoints(parsedPoints)) : undefined),
+    [parsedPoints],
+  )
+
   // Reverse-geocoding needs the place list from analytics, so it starts
   // once clustering has actually finished — on the main thread (see
   // useGeocoding.ts), not blocking anything else, since it's rate-limited
@@ -95,6 +108,7 @@ function App() {
         displayPlaces={displayPlaces}
         periods={periods}
         range={range}
+        heatScale={heatScale}
         onRangeChange={setRange}
         onLoadAnother={handleBack}
       />

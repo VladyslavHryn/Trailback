@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { CalendarX, Loader2, Route } from 'lucide-react'
 import type { ParsedPoints } from '../parsing/types'
 import type { AnalyticsState } from '../hooks/useAnalytics'
@@ -18,6 +18,7 @@ import { OutroSection } from './story/OutroSection'
 import { TimeRangeFilter } from './story/TimeRangeFilter'
 import { describeRange, type AvailablePeriods, type RangeSelection } from '../analytics/timeRange'
 import type { MapLayer } from './MapView'
+import type { HeatScale } from '../map/aggregateHeatmapPoints'
 import { cn } from '../lib/cn'
 
 // Below this, a "place" is somewhere you passed through rather than stayed.
@@ -34,9 +35,22 @@ type ResultsStoryProps = {
   displayPlaces?: DisplayPlace[]
   periods: AvailablePeriods
   range: RangeSelection
+  heatScale?: HeatScale
   onRangeChange: (range: RangeSelection) => void
   onLoadAnother: () => void
 }
+
+/**
+ * Custom property carrying the fixed header's measured height, so anything
+ * that has to clear it can do so without hard-coding a number.
+ *
+ * It cannot be a constant: the header grows a second row of chips the moment
+ * a year is selected, and shrinks again on "весь час". A static offset was
+ * therefore wrong in one state or the other — in practice the map section's
+ * eyebrow and heading sat UNDER the header, which read as the caption (and
+ * the layer switcher below it) simply not being there.
+ */
+const HEADER_HEIGHT_VAR = '--trail-header-h'
 
 /**
  * The results view: a full-screen vertical scroll where each screen reveals
@@ -54,10 +68,72 @@ export function ResultsStory({
   displayPlaces,
   periods,
   range,
+  heatScale,
   onRangeChange,
   onLoadAnother,
 }: ResultsStoryProps) {
   const [mapLayer, setMapLayer] = useState<MapLayer>('heat')
+
+  // A callback ref rather than an effect on a plain ref: `chrome` is rendered
+  // from several different early returns, so the header is a different DOM
+  // node depending on which state the story is in, and an effect keyed on
+  // mount would keep measuring a node React had already replaced.
+  //
+  // The height is published from THREE places, and each covers a case the
+  // others miss:
+  //
+  //   1. Synchronously when the ref attaches, so the very first layout has a
+  //      real number instead of the fallback.
+  //   2. In a layout effect after EVERY render. Every height change that this
+  //      component causes — the month row appearing under a selected year, a
+  //      progress chip coming and going — is the result of a render, so this
+  //      catches it in the same commit, before paint. Relying on the observer
+  //      alone left the caption laid out against a stale height until the
+  //      next frame, and in any environment where frames are throttled, for
+  //      as long as that lasted: measured at 375px wide, the header wraps to
+  //      204px while the variable still read 104px, and the caption sat under
+  //      it.
+  //   3. The observer, for height changes NOT caused by a render here —
+  //      viewport resizes that rewrap the chips, and late-loading fonts.
+  //
+  // Its entire lifetime lives in the one callback, teardown included.
+  // Splitting it — ref sets up, an unmount effect tears down — is a
+  // StrictMode hazard: the simulated unmount can run the effect's cleanup
+  // after the ref has already re-attached, disconnecting a live observer that
+  // nothing then rebuilds. One owner, one lifetime.
+  const headerNodeRef = useRef<HTMLElement | null>(null)
+  const headerObserverRef = useRef<ResizeObserver | null>(null)
+
+  const publishHeaderHeight = useCallback(() => {
+    const node = headerNodeRef.current
+    if (!node) return
+    document.documentElement.style.setProperty(
+      HEADER_HEIGHT_VAR,
+      `${node.offsetHeight}px`,
+    )
+  }, [])
+
+  const measureHeader = useCallback(
+    (node: HTMLElement | null) => {
+      headerObserverRef.current?.disconnect()
+      headerObserverRef.current = null
+      headerNodeRef.current = node
+
+      if (!node) {
+        document.documentElement.style.removeProperty(HEADER_HEIGHT_VAR)
+        return
+      }
+
+      publishHeaderHeight()
+      const observer = new ResizeObserver(publishHeaderHeight)
+      observer.observe(node)
+      headerObserverRef.current = observer
+    },
+    [publishHeaderHeight],
+  )
+
+  // Deliberately no dependency array — see (2) above.
+  useLayoutEffect(publishHeaderHeight)
 
   // The last result that finished, kept so a range change doesn't blank the
   // screen. Without it, every uncached period replaces the whole story with
@@ -131,7 +207,14 @@ export function ResultsStory({
   // if a period fails or is still computing, the reader has to be able to
   // pick a different one without reloading the file.
   const chrome = (
-    <header className="fixed inset-x-0 top-0 z-[1000] border-b border-ink-800/60 bg-ink-950/80 backdrop-blur-md">
+    // z-index has to clear 1000, not merely match it: Leaflet gives its own
+    // control corners `z-index: 1000`, and on a tie the later element in the
+    // DOM wins — which is the map. At z-[1000] the zoom buttons painted over
+    // this header and swallowed clicks in that corner.
+    <header
+      ref={measureHeader}
+      className="fixed inset-x-0 top-0 z-[1100] border-b border-ink-800/60 bg-ink-950/80 backdrop-blur-md"
+    >
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-6 py-4 md:px-10">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5 font-display text-lg font-semibold tracking-tight text-ink-50">
@@ -146,8 +229,15 @@ export function ResultsStory({
                 Перераховуємо
               </span>
             )}
+            {/* The one moment anything leaves the device, so it says so
+                here rather than only in the outro — by the time the reader
+                reaches the bottom of the story these requests are long done,
+                and a disclosure that arrives after the fact isn't one. */}
             {geocoding.status === 'running' && (
-              <span className="flex items-center gap-2 rounded-full border border-ink-800 bg-ink-900/80 px-3 py-1.5 font-mono text-[10px] text-ink-400">
+              <span
+                title="Єдиний обмін із мережею: до OpenStreetMap ідуть округлені координати центрів твоїх топ-місць, по одному запиту за раз. Сам файл нікуди не надсилається."
+                className="flex cursor-help items-center gap-2 rounded-full border border-ink-800 bg-ink-900/80 px-3 py-1.5 font-mono text-[10px] text-ink-400"
+              >
                 <Loader2 className="h-3 w-3 animate-spin text-trail-400" />
                 Розпізнаємо назви {geocoding.progress.completed}/{geocoding.progress.total}
               </span>
@@ -232,6 +322,7 @@ export function ResultsStory({
           points={points}
           places={significantDisplayPlaces}
           layer={mapLayer}
+          heatScale={heatScale}
           onLayerChange={setMapLayer}
         />
 

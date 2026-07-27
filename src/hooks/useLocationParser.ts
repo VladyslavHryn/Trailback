@@ -47,10 +47,18 @@ export function useLocationParser() {
       }
     }
 
-    worker.onerror = () => {
+    // This fires when the WORKER ITSELF fails — it couldn't be loaded, or it
+    // threw outside the handler's own try/catch. That is a different fault
+    // from "the file couldn't be parsed", and it used to report the identical
+    // sentence, so the two were indistinguishable from the outside. Whatever
+    // the browser tells us about it goes into the message and the console
+    // rather than being dropped.
+    worker.onerror = (event: ErrorEvent) => {
+      console.error('[trailback] parser worker failed', event)
+      const detail = event?.message ? ` — ${event.message}` : ''
       setState({
         status: 'error',
-        message: 'Не вдалося обробити файл. Спробуй інший експорт.',
+        message: `Не вдалося запустити обробку файлу${detail}`,
       })
       worker.terminate()
       workerRef.current = null

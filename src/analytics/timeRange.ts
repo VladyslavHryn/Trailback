@@ -148,6 +148,7 @@ export function filterPointsByRange(
   const lat = new Float64Array(kept)
   const lng = new Float64Array(kept)
   const timestampSec = new Uint32Array(kept)
+  const sources = new Uint8Array(kept)
   const semanticLabels = new Array<string | null>(kept)
 
   let out = 0
@@ -157,9 +158,25 @@ export function filterPointsByRange(
     lat[out] = points.lat[i]
     lng[out] = points.lng[i]
     timestampSec[out] = t
+    sources[out] = points.sources[i]
     semanticLabels[out] = points.semanticLabels[i]
     out++
   }
 
-  return { ...points, lat, lng, timestampSec, semanticLabels }
+  return {
+    ...points,
+    lat,
+    lng,
+    timestampSec,
+    sources,
+    semanticLabels,
+    // Activities and trips carry their own spans and must be narrowed too,
+    // or a single month would report the whole history's kilometres. Keyed
+    // on where each one STARTED, so a segment straddling a boundary lands in
+    // exactly one period rather than being counted twice or split.
+    activities: points.activities.filter(
+      (a) => a.startSec >= startSec && a.startSec < endSec,
+    ),
+    trips: points.trips.filter((t) => t.startSec >= startSec && t.startSec < endSec),
+  }
 }

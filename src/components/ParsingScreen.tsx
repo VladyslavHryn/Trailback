@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import type { ParseProgress } from '../parsing/types'
+import { formatDecimal } from './story/format'
 
 type ParsingScreenProps = {
   progress: ParseProgress
@@ -8,7 +9,7 @@ type ParsingScreenProps = {
 }
 
 function formatMb(bytes: number): string {
-  return (bytes / (1024 * 1024)).toFixed(1)
+  return formatDecimal(bytes / (1024 * 1024))
 }
 
 export function ParsingScreen({ progress, onCancel }: ParsingScreenProps) {
@@ -54,10 +55,23 @@ export function ParsingScreen({ progress, onCancel }: ParsingScreenProps) {
         {/* The same badge the landing page carries, repeated at the one
             moment the reader is actually handing over the file — a promise
             made only on the screen before this one is the easiest promise to
-            doubt. */}
+            doubt.
+
+            It promises what is actually true, and no more. This used to read
+            "нічого не покидає цей пристрій", which is an absolute the product
+            does not keep: later, to name the top places, their rounded centres
+            are sent to OpenStreetMap. A privacy claim that turns out to have
+            an unmentioned exception costs more trust than the exception itself
+            ever would, so the file gets the absolute promise — it genuinely
+            never leaves — and the exception is named on the spot. */}
         <p className="mt-6 inline-flex items-center gap-1.5 text-xs text-ink-400">
           <ShieldCheck className="h-3.5 w-3.5 text-signal-400" />
-          Нічого не покидає цей пристрій
+          Твій файл не залишає цей пристрій
+        </p>
+        <p className="mt-2 text-[11px] leading-relaxed text-ink-600">
+          Згодом, щоб підписати твої топ-місця, до OpenStreetMap підуть лише
+          округлені координати їхніх центрів — кілька десятків точок, ніколи не
+          сам файл.
         </p>
 
         <button

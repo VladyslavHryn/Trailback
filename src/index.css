@@ -161,16 +161,26 @@ body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 
-  /* NO ambient wash. This went through three radials (amber, jade, and a
-     periwinkle the accent system had already declared removed), then one
-     narrowed amber radial — and on a full-screen capture even the single one
-     still read as "the whole upper half is tinted amber" rather than as light.
-     A background glow cannot compete with the accent it is made of: every
-     amber thing that is supposed to draw the eye — the badge, the button, the
-     value icons — was sitting inside a large amber field.
-     The grain in body::after is what keeps a flat dark surface from reading as
-     dead, and it does that without spending the accent colour. */
+  /* DEPTH, layer 1 of 2: an ambient wash made of LIGHT, not of accent.
+     The earlier attempts at this were built from the accent colours — three
+     radials (amber, jade, periwinkle), then a single narrowed amber one — and
+     all of them failed the same way: a large amber field cannot coexist with
+     the amber things that are supposed to draw the eye, so the page read as
+     "the top half is tinted" instead of "there is a light source here". That
+     risk is higher now, not lower, because the route on the map is amber too.
+     So the hue is dropped entirely. A near-white radial anchored behind the
+     headline acts as the key light, and a cool desaturated slate in the
+     opposite corner as a counter-light — both far below the threshold where
+     a colour is legible AS a colour, which is exactly what makes them read as
+     illumination rather than as tint. Neither is an accent, so neither
+     competes with one.
+     `fixed` means this never repaints on scroll. */
   background-color: var(--color-ink-950);
+  background-image:
+    radial-gradient(115% 75% at 16% 20%, rgba(255, 255, 255, 0.05), transparent 62%),
+    radial-gradient(95% 70% at 88% 82%, rgba(126, 146, 156, 0.05), transparent 66%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 /* Literata carries `wght` only, so an `opsz` declaration would be a silently
@@ -415,12 +425,19 @@ body::after {
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  padding: 2.5px 7px;
-  border-radius: 7px;
+  /* A true PILL, not a rounded rectangle: the radius is half the chip's own
+     height, so the ends are semicircles at any text length. At 7px on a 22px
+     chip the corners were merely softened, which reads as a small panel
+     rather than as a label attached to a point.
+     Sized up from 10.5px as well — the chip sits over street linework at its
+     busiest, and the previous size was legible only because nothing happened
+     to be under it. */
+  padding: 3px 9px;
+  border-radius: 9999px;
   border: 1px solid var(--color-ink-600);
   background: rgba(8, 10, 11, 0.94);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--color-ink-50);
@@ -428,6 +445,12 @@ body::after {
   box-shadow:
     0 0 0 1.5px rgba(8, 10, 11, 0.75),
     0 3px 12px rgba(0, 0, 0, 0.55);
+}
+
+/* Suppressed by the collision pass — the dot stays, so the place is still
+   marked and its name is still one hover away. */
+.trail-pin__label--hidden {
+  display: none;
 }
 
 .trail-pin__rank {

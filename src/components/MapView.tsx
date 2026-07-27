@@ -12,6 +12,8 @@ import {
   type HeatScale,
 } from '../map/aggregateHeatmapPoints'
 import { buildRoutes } from '../map/buildRoutes'
+import { robustBounds } from '../map/robustBounds'
+import { selectVisibleLabels } from '../map/labelCollision'
 import { HEAT_CONFIG, toLeafletOptions } from '../map/heatConfig'
 
 const MAX_PLACE_MARKERS = 8
@@ -306,34 +308,25 @@ export function MapView({
     layerGroupRef.current = layerGroup
 
     if (points && points.lat.length > 0) {
-      const count = points.lat.length
 
-      // True extent over ALL points (cheap numeric pass), not just the
-      // rendered sample below — the view should cover the whole history
-      // even if a far-flung outlier point happens to land between strides.
-      let minLat = Infinity
-      let maxLat = -Infinity
-      let minLng = Infinity
-      let maxLng = -Infinity
-      for (let i = 0; i < count; i++) {
-        const lat = points.lat[i]
-        const lng = points.lng[i]
-        if (lat < minLat) minLat = lat
-        if (lat > maxLat) maxLat = lat
-        if (lng < minLng) minLng = lng
-        if (lng > maxLng) maxLng = lng
-      }
+      // Where nearly all of the history is, NOT its full extent — see
+      // robustBounds for the measurement showing why a true bounding box is
+      // the wrong opening frame (three stray points out of 27,000 dropped the
+      // view from Kyiv at zoom 14 to half of Europe at zoom 5, taking the
+      // heatmap and the route with it).
+      const bounds = robustBounds(points)
+
       // Only refit when the DATA changed, never on a layer toggle. Switching
       // between heat and routes is a change of reading, not of subject: if
       // the reader has zoomed into their neighbourhood, throwing them back
-      // out to the full extent because they pressed a different tab loses
-      // the position they were studying.
-      if (fittedPointsRef.current !== points) {
+      // out because they pressed a different tab loses the position they
+      // were studying.
+      if (bounds && fittedPointsRef.current !== points) {
         fittedPointsRef.current = points
         map.fitBounds(
           [
-            [minLat, minLng],
-            [maxLat, maxLng],
+            [bounds.minLat, bounds.minLng],
+            [bounds.maxLat, bounds.maxLng],
           ],
           { padding: [32, 32] },
         )
@@ -389,13 +382,40 @@ export function MapView({
         // reads brighter than a road taken once, for free.
         // Same reason as the heatmap: a run of identical visit samples draws
         // as a stationary knot in the middle of a path that never stopped.
-        const renderer = L.canvas({ padding: 0.4 })
-        for (const segment of buildRoutes(movementPoints(points))) {
+        // AMBER, and drawn TWICE. Jade sat in the same hue family CARTO's
+        // dark basemap uses for water and parks, so a 1.1px jade hairline at
+        // 32% dissolved into the tiles it was drawn over — barely visible
+        // even where the reader had walked hundreds of times.
+        //
+        // Two passes on two renderers, so every wide stroke is under every
+        // thin one: a broad dim pass that pools into a glow wherever paths
+        // run together, and a narrow bright core that keeps a single street
+        // legible. Canvas can't blur, so the bloom comes from width and
+        // accumulation rather than a filter — which is also what makes
+        // frequency readable, since overlapping passes stack while a road
+        // taken once stays faint.
+        const glowRenderer = L.canvas({ padding: 0.4 })
+        const coreRenderer = L.canvas({ padding: 0.4 })
+        const segments = buildRoutes(movementPoints(points))
+
+        for (const segment of segments) {
           L.polyline(segment, {
-            renderer,
-            color: '#5fdcb9',
-            weight: 1.1,
-            opacity: 0.32,
+            renderer: glowRenderer,
+            color: '#d97706',
+            weight: 7,
+            opacity: 0.09,
+            lineCap: 'round',
+            lineJoin: 'round',
+            interactive: false,
+          }).addTo(layerGroup)
+        }
+
+        for (const segment of segments) {
+          L.polyline(segment, {
+            renderer: coreRenderer,
+            color: '#fbbf24',
+            weight: 1.4,
+            opacity: 0.5,
             lineCap: 'round',
             lineJoin: 'round',
             interactive: false,
@@ -486,6 +506,41 @@ export function MapView({
           { direction: 'top', offset: [0, -12] },
         )
     })
+
+    // COLLISION PASS. Pins are placed by geography, so nothing stops two of
+    // them landing on top of each other — and when they do, their name chips
+    // overlap into an unreadable pile. Capping the number of labels doesn't
+    // help: four labels collide just as badly if the four places are on the
+    // same street.
+    //
+    // Runs after layout (labels have to exist to be measured) and again on
+    // every zoom or pan, because which labels fit is a property of the
+    // CURRENT view, not of the data.
+    const resolveCollisions = () => {
+      const labelled = placesLayer
+        .getLayers()
+        .map((l) => (l as L.Marker).getElement()?.querySelector('.trail-pin__label'))
+        .filter((el): el is HTMLElement => el instanceof HTMLElement)
+
+      // Measure everything unhidden first, or a label suppressed by the last
+      // pass would measure as zero-size and never come back when there is
+      // room for it again.
+      labelled.forEach((el) => el.classList.remove('trail-pin__label--hidden'))
+      const boxes = labelled.map((el) => el.getBoundingClientRect())
+      selectVisibleLabels(boxes).forEach((keep, i) => {
+        if (!keep) labelled[i].classList.add('trail-pin__label--hidden')
+      })
+    }
+
+    // The markers are in the DOM synchronously, but their transforms settle a
+    // frame later; measuring immediately reads stale positions.
+    const timer = setTimeout(resolveCollisions, 60)
+    map.on('zoomend moveend', resolveCollisions)
+
+    return () => {
+      clearTimeout(timer)
+      map.off('zoomend moveend', resolveCollisions)
+    }
   }, [places, layer])
 
   return <div ref={containerRef} className="h-full w-full" />

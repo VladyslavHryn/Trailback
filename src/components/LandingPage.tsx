@@ -5,10 +5,7 @@ import {
   AlertTriangle,
   ArrowDownToLine,
   FileJson,
-  History,
-  Layers,
   Map as MapIcon,
-  Repeat,
   ShieldCheck,
   X,
 } from 'lucide-react'
@@ -19,6 +16,19 @@ import {
    2.2 and the value chips ran the default, which is the kind of drift that
    makes an icon set look borrowed instead of specified. */
 const ICON_STROKE = 2
+
+/* The drop zone's frame, as four CROP MARKS rather than a drawn rectangle.
+   A dashed box is the most recognisable drag-and-drop treatment there is,
+   and a 1px solid box is only a quieter version of the same generic shape.
+   Registration marks are the convention for a map sheet or a photographic
+   crop — the frame is IMPLIED by its corners, which is less furniture and
+   specific to what this product actually handles. */
+const CROP_CORNERS = [
+  { key: 'tl', box: 'left-0 top-0', h: 'left-0 top-0', v: 'left-0 top-0' },
+  { key: 'tr', box: 'right-0 top-0', h: 'right-0 top-0', v: 'right-0 top-0' },
+  { key: 'bl', box: 'bottom-0 left-0', h: 'bottom-0 left-0', v: 'bottom-0 left-0' },
+  { key: 'br', box: 'bottom-0 right-0', h: 'bottom-0 right-0', v: 'bottom-0 right-0' },
+] as const
 import { TILE_URL, TILE_ATTRIBUTION, createPlaceIcon } from './MapView'
 
 const GUIDE_STEPS = [
@@ -38,22 +48,6 @@ const GUIDE_STEPS = [
     title: 'Розпакуй і завантаж сюди',
     body: 'Коли Google надішле лист — розпакуй архів і перетягни у зону вище файл Records.json (або Timeline.json у новішому форматі) з нього.',
   },
-]
-
-/* Three promises, deliberately parallel: each is a noun phrase of four to six
-   words, so the eye reads them as one set rather than three sentences of
-   different lengths. The previous copy ran 8-10 words each with the qualifier
-   trailing ("..., яких ти сам за собою не помічав"), which buries the payload
-   at the end of the line on a screen the reader scans in about three seconds.
-
-   The icons carry NO colour of their own — see the chip in the markup, where
-   all three are rendered at one size in the single accent. Three different
-   hues across three items of one semantic group ("what you get") reads as
-   decoration, not as meaning. */
-const VALUE_POINTS = [
-  { icon: Layers, text: 'Вся карта одразу, не по днях' },
-  { icon: Repeat, text: 'Звички, які ти не помічав сам' },
-  { icon: History, text: 'Місця, що з’явились і зникли' },
 ]
 
 type LandingPageProps = {
@@ -102,12 +96,22 @@ export function LandingPage({
         </div>
       </header>
 
-      <main className="relative z-10 flex flex-1 flex-col items-center px-6 pb-16 pt-2 md:px-10">
+      {/* `justify-center` centres the hero as ONE block in the leftover
+          viewport height, rather than letting it hang from the top with the
+          slack collecting underneath. The padding is symmetric for the same
+          reason — the previous pt-2/pb-16 pair was itself an 56px upward
+          bias, so even a centred block would have sat high. `py` is the
+          minimum breathing room on short screens, where the content is
+          taller than the viewport and centring has nothing left to do. */}
+      <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-12 md:px-10">
         {/* ONE column of reading that ENDS at the drop zone, with the live demo
             beside it — rather than a two-column hero followed by a centred
             upload card, which put the only action the screen asks for outside
             the flow the reader was following. */}
-        <div className="grid w-full max-w-6xl items-start gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16">
+        {/* `items-stretch`, so the map column resolves to the ROW's height
+            and the map genuinely fills its side instead of floating as a
+            fixed-height widget beside a taller column of text. */}
+        <div className="grid w-full max-w-6xl items-stretch gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-16">
           <div className="flex flex-col">
             {/* No eyebrow badge above the headline. It carried a real fact,
                 but it shouted it in caps, in mono, inside a pill — three
@@ -132,34 +136,27 @@ export function LandingPage({
               роки маршрутів одразу.
             </p>
 
-            {/* Bare icons, NO chip. These three had the identical treatment as
-                the drop zone's icon — same rounded square, same border, same
-                accent fill — which put a decorative list marker and the one
-                functional control of the screen in the same visual class. The
-                container is now what marks something as ACTIONABLE, and it is
-                spent only there. These also drop to trail-500 and 18px: a list
-                marker should sit under the thing it is listing, not compete. */}
-            {/* Hero vertical rhythm, on one 8px ladder: 24 to the subtitle,
-                32 to this list, 40 to the drop zone. Each step widens as the
-                relationship loosens — a headline owns its subtitle, the list
-                is a separate group, the drop zone is the action. It ran
-                20/32/36 before, which is three different near-misses of the
-                8px grid the rest of the page sits on, and left the last two
-                gaps 4px apart: too close to read as different, too far to
-                read as the same. */}
-            <ul className="mt-8 flex flex-col gap-3">
-              {VALUE_POINTS.map(({ icon: Icon, text }) => (
-                <li key={text} className="flex items-center gap-3">
-                  <Icon
-                    className="h-[18px] w-[18px] shrink-0 text-trail-500"
-                    strokeWidth={ICON_STROKE}
-                  />
-                  <span className="text-body font-medium text-ink-200">
-                    {text}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {/* The three promises, as PROSE rather than a bulleted list.
+                They were an icon-left/text-right row repeated three times —
+                the most template-like block on the page, and the icons were
+                pure decoration: a stack of layers, a repeat arrow and a clock
+                said nothing the words did not. Folded into one sentence, they
+                read as a claim the product is making instead of a feature
+                grid, and the emphasis does the scanning work the icons were
+                pretending to do. */}
+            <p className="mt-8 max-w-[48ch] text-body leading-relaxed text-ink-400">
+              Замість сотень окремих днів —{' '}
+              <span className="font-medium text-ink-200">одна карта</span>, на
+              якій видно{' '}
+              <span className="font-medium text-ink-200">
+                звички, яких ти за собою не помічав
+              </span>
+              , і{' '}
+              <span className="font-medium text-ink-200">
+                місця, що з’явились чи зникли
+              </span>{' '}
+              з твого життя.
+            </p>
 
             {/* A SOLID hairline, not a dashed rectangle. The dashed border is
                 the single most reproduced drag-and-drop treatment there is; a
@@ -176,12 +173,41 @@ export function LandingPage({
                 setIsDragActive(false)
                 handleFiles(e.dataTransfer.files)
               }}
-              className={`mt-10 rounded-2xl border px-5 py-6 transition-colors duration-200 sm:px-6 ${
+              className={`trail-dropzone relative mt-10 rounded-2xl px-6 py-7 transition-colors duration-200 sm:px-7 ${
                 isDragActive
-                  ? 'border-trail-400 bg-trail-500/[0.09]'
-                  : 'border-ink-700 bg-ink-900/50 hover:border-trail-500/55'
+                  ? 'trail-dropzone--active bg-gradient-to-b from-trail-500/[0.10] to-trail-500/[0.03]'
+                  : 'bg-gradient-to-b from-ink-800/45 to-ink-900/25 hover:from-ink-800/60 hover:to-ink-900/35'
               }`}
             >
+              {/* The frame, as four registration marks rather than a drawn
+                  rectangle — see `.trail-crop`. Decorative, so hidden from
+                  assistive tech: the drop zone is already described by its
+                  heading and its button. */}
+              {CROP_CORNERS.map(({ key, box, h, v }) => {
+                /* Colour and length are INLINE, not utility classes. The two
+                   state-driven properties are the whole point of the control,
+                   and they have to be certain: verified in the browser that
+                   neither a `bg-*` utility nor a custom `border-color` rule
+                   actually reached these elements, while the class names were
+                   present and correct. An inline style is immune to whatever
+                   is eating them, and for exactly two animated properties it
+                   is also the plainest way to say it. */
+                const bar = isDragActive ? '#f59e0b' : '#424a50'
+                const reach = isDragActive ? '2rem' : '1rem'
+                return (
+                  <span key={key} aria-hidden="true" className={`absolute ${box}`}>
+                    <span
+                      className={`absolute ${h} transition-all duration-300`}
+                      style={{ backgroundColor: bar, width: reach, height: '1px' }}
+                    />
+                    <span
+                      className={`absolute ${v} transition-all duration-300`}
+                      style={{ backgroundColor: bar, width: '1px', height: reach }}
+                    />
+                  </span>
+                )
+              })}
+
               <div className="flex items-start gap-4">
                 {/* Not a cloud-with-an-up-arrow. Beyond being the default
                     choice, "upload to a cloud" is the one thing this product
@@ -333,7 +359,7 @@ function GuideModal({
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl border border-ink-700 bg-ink-900 p-6 text-left shadow-2xl"
+            className="w-full max-w-md rounded-2xl border border-ink-700 bg-gradient-to-b from-ink-800 to-ink-900 p-6 text-left shadow-2xl"
           >
             <div className="flex items-start justify-between">
               <h2 className="font-display text-lg font-semibold text-ink-50">
@@ -392,13 +418,24 @@ type LatLng = { lat: number; lng: number }
  * overlapping labels — the same reason the results map labels only its
  * strongest few.
  */
-const DEMO_STOPS: Array<LatLng & { label?: string }> = [
+const DEMO_STOPS: Array<LatLng & { label: string }> = [
   { lat: 50.4522, lng: 30.5257, label: 'Дім' }, // Володимирська гірка
-  { lat: 50.4649, lng: 30.5183 }, // Контрактова площа
-  { lat: 50.4472, lng: 30.5145 }, // Золоті ворота
   { lat: 50.438, lng: 30.5192, label: 'Робота' }, // Бессарабська площа
-  { lat: 50.4501, lng: 30.5234 }, // Майдан Незалежності
 ]
+
+/**
+ * The waypoints the track was ROUTED through, which is a different list from
+ * the places worth marking. Three of them (Контрактова, Золоті ворота,
+ * Майдан) exist only to give the road route its shape — they are geometry,
+ * not destinations. They used to get pins as well, which put an unlabelled
+ * dot on three arbitrary bends and made the map read like debug output;
+ * every dot on a map is a claim that something happened there.
+ * Kept as a comment rather than as code because the track is baked: nothing
+ * reads these at runtime.
+ *   50.4649, 30.5183 — Контрактова площа
+ *   50.4472, 30.5145 — Золоті ворота
+ *   50.4501, 30.5234 — Майдан Незалежності
+ */
 
 /**
  * The preview track, MAP-MATCHED to Kyiv's real street network.
@@ -456,6 +493,41 @@ const DEMO_TRACK: Array<[lat: number, lng: number]> = [
   [50.45213, 30.52561]
 ]
 
+/**
+ * Splits the baked track into the stretch travelled DAILY and the rest.
+ *
+ * A Strava-style heat render needs a frequency per segment, and this preview
+ * has none: the track is one loop, walked once. Rather than invent a random
+ * weight per vertex, the frequency comes from the one thing that is actually
+ * true of a commute — the stretch between home and work is covered twice a
+ * day, every working day, while the rest of a loop is occasional. So the arc
+ * between the two named stops is the hot corridor and the remainder is not.
+ *
+ * Computed at module load from the track itself, so it stays correct if the
+ * route is ever re-baked.
+ */
+function nearestIndex(track: Array<[number, number]>, lat: number, lng: number): number {
+  let best = 0
+  let bestD = Infinity
+  for (let i = 0; i < track.length; i++) {
+    const d = (track[i][0] - lat) ** 2 + (track[i][1] - lng) ** 2
+    if (d < bestD) {
+      bestD = d
+      best = i
+    }
+  }
+  return best
+}
+
+const HOME_INDEX = nearestIndex(DEMO_TRACK, DEMO_STOPS[0].lat, DEMO_STOPS[0].lng)
+const WORK_INDEX = nearestIndex(DEMO_TRACK, DEMO_STOPS[1].lat, DEMO_STOPS[1].lng)
+
+/** The daily commute stretch: the shorter arc between the two stops. */
+const HOT_SEGMENT: Array<[number, number]> = DEMO_TRACK.slice(
+  Math.min(HOME_INDEX, WORK_INDEX),
+  Math.max(HOME_INDEX, WORK_INDEX) + 1,
+)
+
 const DEMO_INSIGHTS = [
   { label: 'Пройдено', value: '2 847 км' },
   { label: 'Улюблене місце', value: 'Кав’ярня на розі' },
@@ -480,6 +552,10 @@ function HeroDemo() {
   const markersRef = useRef<L.Marker[]>([])
   const glowLineRef = useRef<L.Polyline | null>(null)
   const lineRef = useRef<L.Polyline | null>(null)
+  // The commute corridor, drawn as its own bloom + core on top of the base
+  // track — this is what turns a uniform GPS trace into a heat render.
+  const hotGlowRef = useRef<L.Polyline | null>(null)
+  const hotLineRef = useRef<L.Polyline | null>(null)
   // Kept so a resize can RE-FIT, not just re-measure — see the observer below.
   const boundsRef = useRef<L.LatLngBounds | null>(null)
 
@@ -517,34 +593,63 @@ function HeroDemo() {
     // zigzag. The geometry is already simplified once, in metres, where the
     // tolerance means something; simplifying again in pixels only destroys
     // the street shape that is the point of showing it.
+// AMBER, not the jade this used to be. Jade sits in exactly the hue
+    // family CARTO's dark basemap uses for water and parks, so the route
+    // dissolved into the tiles it was drawn over. Amber is absent from that
+    // palette, and it is also the system's magnitude accent — which is now
+    // literally what this line encodes, since its weight varies with how
+    // often a stretch was travelled.
+    //
+    // FOUR LAYERS, in the order Strava's heat render stacks them: a wide
+    // blurred bloom under the commute, a softer bloom under everything, the
+    // full track as a thin dim trace, and the commute again as a bright
+    // thick core. Frequency therefore reads three ways at once — brightness,
+    // thickness and bloom — instead of a single uniform hairline.
+    //
+    // `smoothFactor: 0` throughout: the geometry was already simplified once
+    // in METRES when it was baked, and Leaflet's own pass is measured in
+    // screen pixels, which at this zoom flattens the street shape away.
     glowLineRef.current = L.polyline(latLngs, {
-      color: '#25c79c',
-      weight: 7,
+      color: '#d97706',
+      weight: 9,
       opacity: 0,
       smoothFactor: 0,
+      lineCap: 'round',
+      lineJoin: 'round',
       className: 'trail-route-glow',
     }).addTo(map)
 
-    // Solid and thin, NOT the marching-dash treatment this used to carry. A
-    // dashed stroke is the convention for a route someone plans; a recorded
-    // track is continuous, and reading as recorded is the whole point of the
-    // preview. The dash also fought the curves, breaking a smooth path into
-    // ticks that drew attention to the geometry instead of the shape.
-    lineRef.current = L.polyline(latLngs, {
-      color: '#5fdcb9',
-      weight: 1.8,
+    hotGlowRef.current = L.polyline(HOT_SEGMENT, {
+      color: '#f59e0b',
+      weight: 18,
       opacity: 0,
+      smoothFactor: 0,
       lineCap: 'round',
       lineJoin: 'round',
-      smoothFactor: 0,
+      className: 'trail-route-glow',
     }).addTo(map)
 
-    // The product's own pin component, not a preview-only lookalike, so the
-    // chip a reader sees here is literally the one they'll see on their own
-    // map. No rank: numbering is a ranking claim, and nothing here is ranked.
+    lineRef.current = L.polyline(latLngs, {
+      color: '#f59e0b',
+      weight: 1.6,
+      opacity: 0,
+      smoothFactor: 0,
+      lineCap: 'round',
+      lineJoin: 'round',
+    }).addTo(map)
+
+    hotLineRef.current = L.polyline(HOT_SEGMENT, {
+      color: '#fcd34d',
+      weight: 3.4,
+      opacity: 0,
+      smoothFactor: 0,
+      lineCap: 'round',
+      lineJoin: 'round',
+    }).addTo(map)
+
     markersRef.current = DEMO_STOPS.map((p) =>
       L.marker([p.lat, p.lng], {
-        icon: createPlaceIcon(null, '#5fdcb9', p.label ?? null),
+        icon: createPlaceIcon(null, '#5fdcb9', p.label),
         opacity: 0,
       }).addTo(map),
     )
@@ -587,11 +692,29 @@ function HeroDemo() {
     if (phase === 'day') {
       lineRef.current?.setStyle({ opacity: 0 })
       glowLineRef.current?.setStyle({ opacity: 0 })
-      markers.forEach((marker, i) => marker.setOpacity(i === dayStep ? 1 : 0))
+      hotLineRef.current?.setStyle({ opacity: 0 })
+      hotGlowRef.current?.setStyle({ opacity: 0 })
+      // Five weekdays over two real places: a weekday IS home and work, so
+      // cycling them tells the "one fragment per day" story without needing
+      // a marker parked on a bend for days three to five.
+      const active = dayStep % markers.length
+      markers.forEach((marker, i) => marker.setOpacity(i === active ? 1 : 0))
     } else {
-      const dim = phase === 'insights' ? 0.35 : 1
-      lineRef.current?.setStyle({ opacity: 0.9 * dim })
-      glowLineRef.current?.setStyle({ opacity: 0.25 * dim })
+      // The insights phase dims the map so the stat cards on top of it stay
+      // legible. 0.35 was chosen when the route was a single opaque line; it
+      // is far too deep now that the route is a layered heat render whose
+      // base trace is deliberately faint to begin with — multiplied together
+      // the corridor fell to 33% and the base to 17%. It matters more than a
+      // phase tweak because a reduced-motion visitor never leaves this phase,
+      // so that was the ONLY map they ever saw.
+      const dim = phase === 'insights' ? 0.7 : 1
+      // The base trace stays deliberately faint: the contrast between it and
+      // the commute IS the frequency reading. Lift it and the map flattens
+      // back into one uniform line.
+      lineRef.current?.setStyle({ opacity: 0.5 * dim })
+      glowLineRef.current?.setStyle({ opacity: 0.16 * dim })
+      hotLineRef.current?.setStyle({ opacity: 0.95 * dim })
+      hotGlowRef.current?.setStyle({ opacity: 0.4 * dim })
       markers.forEach((marker) => marker.setOpacity(dim))
     }
   }, [phase, dayStep])
@@ -645,8 +768,18 @@ function HeroDemo() {
        It aligns to the container edge rather than bleeding. A bleed was tried at
        +2.5rem and stopped ~100px short of the viewport on a 1440 screen, because
        the container is centred with max-width — a partial bleed reads as a
-       mis-set margin, not as a decision, so the honest edge is the aligned one. */
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg lg:aspect-auto lg:h-[38rem]">
+       mis-set margin, not as a decision, so the honest edge is the aligned one.
+
+       NO card treatment at all now: the small radius is gone too. A rounded
+       box around a map still reads as a widget embedded in a page, and that
+       radius was physically clipping the Leaflet attribution, which sits
+       flush in the bottom-right corner. Square edges let the map read as a
+       panel OF the layout and give the attribution its corner back.
+       `overflow-hidden` stays — it clips the tile grid, not the chrome.
+       Height now comes from the stretched grid row on desktop, so the map
+       matches the text column exactly; the aspect ratio only governs the
+       stacked mobile layout, where there is no second column to match. */
+    <div className="relative w-full overflow-hidden aspect-[4/3] lg:aspect-auto lg:h-full lg:min-h-[34rem]">
       <div ref={containerRef} className="absolute inset-0" />
 
       <div className="pointer-events-none absolute inset-0">

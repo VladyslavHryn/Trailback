@@ -20,6 +20,10 @@ import type { DistanceStats } from '../../analytics/distanceStats'
 
 type OutroSectionProps = {
   distance: DistanceStats
+  /** Human-readable current period, e.g. "2024 рік". */
+  rangeLabel: string
+  /** False whenever a year or month filter narrows the view. */
+  isFullHistory: boolean
   onLoadAnother: () => void
 }
 
@@ -49,7 +53,10 @@ function StatCard({
   return (
     <SpotlightCard
       className={cn('h-full', className)}
-      glow={featured ? 'rgba(245, 158, 11, 0.18)' : 'rgba(37, 199, 156, 0.12)'}
+      // Same hue either way; the featured card simply gets more of it. It used
+      // to be amber vs jade, which made "this one matters" and "this one is a
+      // place" look like two unrelated kinds of card.
+      glow={featured ? 'rgba(245, 158, 11, 0.18)' : 'rgba(245, 158, 11, 0.06)'}
     >
       {featured && <BorderBeam duration={8} />}
 
@@ -58,7 +65,7 @@ function StatCard({
           <Icon
             className={cn(
               'h-4 w-4 transition-colors duration-300',
-              featured ? 'text-trail-400' : 'text-ink-400 group-hover:text-signal-400',
+              featured ? 'text-trail-400' : 'text-ink-400 group-hover:text-trail-400',
             )}
             strokeWidth={2}
           />
@@ -83,7 +90,12 @@ function StatCard({
   )
 }
 
-export function OutroSection({ distance, onLoadAnother }: OutroSectionProps) {
+export function OutroSection({
+  distance,
+  rangeLabel,
+  isFullHistory,
+  onLoadAnother,
+}: OutroSectionProps) {
   // `other` is included in the total even though it has no tile of its own
   // below unless it's non-zero: Google's activity vocabulary is open-ended
   // (cycling, flying, sailing…), and quietly dropping whatever doesn't fit
@@ -110,8 +122,15 @@ export function OutroSection({ distance, onLoadAnother }: OutroSectionProps) {
               кілометрів
             </p>
           </div>
+          {/* The number above is whatever the CURRENT filter covers, so the
+              sentence under it has to say which. Left as "за весь час історії"
+              it labelled a single year's 3 281 km as the whole history — a
+              caption that contradicts the period chip in the header, and the
+              kind of error a reader has no way to catch. */}
           <p className="mt-6 max-w-[46ch] text-sm leading-relaxed text-ink-400 md:text-base">
-            Це вся дистанція, яку зафіксував твій телефон за весь час історії.
+            {isFullHistory
+              ? 'Це вся дистанція, яку зафіксував твій телефон за весь час історії.'
+              : `Це дистанція лише за період «${rangeLabel}» — не за всю історію.`}
           </p>
         </div>
       </Reveal>
@@ -206,7 +225,7 @@ export function OutroSection({ distance, onLoadAnother }: OutroSectionProps) {
           <button
             type="button"
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="group inline-flex items-center gap-2 rounded-xl border border-ink-700 px-6 py-3 text-sm text-ink-200 transition-colors duration-300 hover:border-ink-600 hover:text-ink-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-400"
+            className="group inline-flex items-center gap-2 rounded-xl border border-ink-700 px-6 py-3 text-sm text-ink-200 transition-colors duration-300 hover:border-ink-600 hover:text-ink-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-trail-300"
           >
             <ArrowUp className="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5" />
             До початку

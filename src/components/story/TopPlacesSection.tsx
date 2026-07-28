@@ -52,7 +52,12 @@ export function TopPlacesSection({ places, spanDays }: TopPlacesSectionProps) {
               <h3 className="mt-3 font-display text-3xl font-semibold leading-[1.05] tracking-tight text-ink-50 md:text-5xl">
                 {leader.displayName}
               </h3>
-              <p className="mt-4 font-mono text-xs text-ink-400">
+              {leader.semanticBadge && (
+                <span className="mt-2 inline-block rounded-full border border-trail-500/30 bg-trail-500/10 px-2 py-0.5 font-mono text-[10px] text-trail-300">
+                  {leader.semanticBadge}
+                </span>
+              )}
+              <p className="mt-3 font-mono text-xs text-ink-400">
                 <NumberTicker value={leader.visitCount} /> {visitsWord(leader.visitCount)}
                 {leader.category && ` · ${leader.category}`}
                 {leader.district && ` · ${leader.district}`}
@@ -65,7 +70,7 @@ export function TopPlacesSection({ places, spanDays }: TopPlacesSectionProps) {
               <p className="text-label-micro text-ink-400">
                 Годин на день
               </p>
-              <p className="numeral-display text-trail-300">
+              <p className="numeral-display text-trail-400">
                 <NumberTicker value={leaderHoursPerDay} decimals={1} />
               </p>
               <p className="mt-2 font-mono text-xs text-ink-400">
@@ -87,11 +92,16 @@ export function TopPlacesSection({ places, spanDays }: TopPlacesSectionProps) {
               <Reveal key={place.clusterId} index={i}>
                 <li className="group border-b border-ink-800 py-5">
                   <div className="flex items-baseline gap-4">
-                    <span className="w-6 shrink-0 font-mono text-xs text-ink-600 transition-colors duration-300 group-hover:text-signal-400">
+                    <span className="w-6 shrink-0 font-mono text-xs text-ink-600 transition-colors duration-300 group-hover:text-trail-400">
                       {String(index + 1).padStart(2, '0')}
                     </span>
                     <h3 className="min-w-0 flex-1 truncate font-display text-lg font-medium text-ink-50 md:text-xl">
                       {place.displayName}
+                      {place.semanticBadge && (
+                        <span className="ml-2 inline-block rounded-full border border-trail-500/30 bg-trail-500/10 px-1.5 py-px font-mono text-[9px] text-trail-400 align-middle">
+                          {place.semanticBadge}
+                        </span>
+                      )}
                     </h3>
                     <span className="shrink-0 font-mono text-xs text-ink-200">
                       {formatDaysUniform(place.totalDurationSec)}
@@ -101,7 +111,7 @@ export function TopPlacesSection({ places, spanDays }: TopPlacesSectionProps) {
                   <div className="mt-3 flex items-center gap-4 pl-10">
                     <div className="h-px flex-1 overflow-hidden bg-ink-800">
                       <motion.div
-                        className="h-full bg-signal-500/80"
+                        className="h-full bg-trail-400"
                         initial={prefersReducedMotion ? false : { width: 0 }}
                         whileInView={{ width: `${Math.max(share * 100, 2)}%` }}
                         viewport={{ once: true, amount: 0.5 }}

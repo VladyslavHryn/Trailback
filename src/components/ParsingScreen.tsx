@@ -65,13 +65,13 @@ export function ParsingScreen({ progress, onCancel }: ParsingScreenProps) {
             ever would, so the file gets the absolute promise — it genuinely
             never leaves — and the exception is named on the spot. */}
         <p className="mt-6 inline-flex items-center gap-1.5 text-xs text-ink-400">
-          <ShieldCheck className="h-3.5 w-3.5 text-signal-400" />
+          <ShieldCheck className="h-3.5 w-3.5 text-ink-400" />
           Твій файл не залишає цей пристрій
         </p>
         <p className="mt-2 text-[11px] leading-relaxed text-ink-600">
-          Згодом, щоб підписати твої топ-місця, до OpenStreetMap підуть лише
-          округлені координати їхніх центрів — кілька десятків точок, ніколи не
-          сам файл.
+          Згодом, щоб підписати твої топ-місця, до Foursquare і OpenStreetMap
+          підуть лише округлені координати їхніх центрів — кілька десятків
+          точок, ніколи не сам файл.
         </p>
 
         <button

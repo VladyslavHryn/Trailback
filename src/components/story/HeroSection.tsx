@@ -49,10 +49,13 @@ export function HeroSection({
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
         style={{
+          /* ONE wash, in the accent. This was three radials in three hues —
+             amber, jade, and a periwinkle the palette notes had already
+             declared removed — which is the coloured-blob background that
+             arrives by default rather than by decision, and it put two
+             non-accent hues on the story's opening screen. */
           background:
-            'radial-gradient(70% 55% at 8% 78%, rgba(217, 119, 6, 0.17), transparent 68%),' +
-            'radial-gradient(48% 42% at 92% 14%, rgba(37, 199, 156, 0.10), transparent 70%),' +
-            'radial-gradient(40% 34% at 66% 52%, rgba(124, 131, 240, 0.08), transparent 74%)',
+            'radial-gradient(70% 55% at 8% 78%, rgba(217, 119, 6, 0.17), transparent 68%)',
         }}
       />
       <div
@@ -80,7 +83,7 @@ export function HeroSection({
         <Reveal>
           <div>
             <p className="font-mono text-xs text-ink-600 md:text-sm">01</p>
-            <p className="text-label mt-2 text-signal-400">Твоя геоісторія</p>
+            <p className="text-label mt-2 text-trail-400">Твоя геоісторія</p>
             {/* Which period the number below is for. Without it the headline
                 figure is ambiguous the moment the filter is touched — 61 504
                 points reads as the whole history whether it is or not, and

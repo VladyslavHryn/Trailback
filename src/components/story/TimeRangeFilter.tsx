@@ -58,16 +58,18 @@ export function TimeRangeFilter({
           onClick={() => onChange(ALL_TIME)}
         />
 
-        {periods.years.map((year) => (
-          <Chip
-            key={year}
-            label={String(year)}
-            // A year stays highlighted while one of its months is selected —
-            // the month is a refinement of it, not a different branch.
-            active={selectedYear === year}
-            onClick={() => onChange({ kind: 'year', year })}
-          />
-        ))}
+        {periods.years
+          .filter((year) => year !== 2024)
+          .map((year) => (
+            <Chip
+              key={year}
+              label={String(year)}
+              // A year stays highlighted while one of its months is selected —
+              // the month is a refinement of it, not a different branch.
+              active={selectedYear === year}
+              onClick={() => onChange({ kind: 'year', year })}
+            />
+          ))}
       </div>
 
       {selectedYear && months.length > 1 && (
@@ -116,7 +118,7 @@ function Chip({
       aria-pressed={active}
       className={cn(
         'rounded-full border font-mono uppercase tracking-[0.08em] transition-colors duration-200',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-400',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-trail-300',
         small ? 'px-2.5 py-1 text-[10px]' : 'px-3.5 py-1.5 text-[11px]',
         active
           ? 'border-trail-400/60 bg-trail-500/15 text-trail-300'

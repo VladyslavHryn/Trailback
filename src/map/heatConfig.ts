@@ -25,6 +25,8 @@
 //      the busiest region into one uniform pale-yellow plateau — the "blinding
 //      blob". Measured: 12.5% of all heat pixels pinned at maximum alpha.
 
+import { ACCENT, withAlpha } from './accent'
+
 /** A gradient stop: a position on the 0..1 intensity scale plus its colour. */
 export interface HeatStop {
   position: number
@@ -106,30 +108,37 @@ export const HEAT_CONFIG: HeatConfig = {
   // is the single biggest contributor to the scale having a usable range.
   minOpacity: 0.05,
 
-  // A cool→warm ramp rather than one hue at varying opacity.
+  // SINGLE HUE, the product accent, dark → bright. Every stop comes from
+  // ACCENT so this layer cannot drift away from the routes and the place pins.
   //
-  // This is a deliberate exception to "sequential scales use a single hue".
-  // The rule exists to prevent hue from carrying meaning it doesn't have —
-  // but a dark-cool → bright-warm ramp (the family inferno/magma belong to)
-  // is monotonic in LIGHTNESS, which is the property that actually makes a
-  // sequential scale readable. Traversing hue as well simply widens the
-  // perceptual distance between "once" and "constantly", which is exactly the
-  // gradation that was missing. The reserved brand amber is spent only at the
-  // top, so the accent still means what it means everywhere else: magnitude.
+  // WHAT THIS REPLACED, AND WHAT IT COSTS. The previous ramp ran cool teal into
+  // warm amber, defended on the grounds that traversing hue as well as
+  // lightness widens the perceptual distance between "once" and "constantly".
+  // That reasoning is sound in isolation and it was measured on a real render:
+  // 1488 of 1504 lit samples came out teal, i.e. at ordinary densities the
+  // heatmap simply WAS a teal layer, sharing no colour with the two tabs beside
+  // it. One dataset read as three products.
+  //
+  // A single hue does give up some of that separation, so the range has to be
+  // spent on lightness instead: the bottom stop is transparent, the middle
+  // climbs through the accent's own ramp, and the top is pushed toward white
+  // rather than stopping at `light`, because two ambers a step apart do not
+  // separate on a dark background while amber and near-white do.
   stops: [
     // Fully transparent at the bottom so sparse areas disappear instead of
     // tinting the basemap.
-    { position: 0.0, color: 'rgba(18, 48, 58, 0)' },
-    // Rare visits: a cold, dark teal that reads as "recorded, barely".
-    { position: 0.18, color: 'rgba(23, 78, 92, 0.55)' },
+    { position: 0.0, color: withAlpha(ACCENT.emberDeep, 0) },
+    // Rare visits: a dark ember that reads as "recorded, barely".
+    { position: 0.18, color: withAlpha(ACCENT.ember, 0.55) },
     // Regular presence.
-    { position: 0.42, color: 'rgba(37, 124, 118, 0.78)' },
-    // Frequent: the ramp turns warm here, which is where the eye starts
-    // reading "a lot".
-    { position: 0.68, color: 'rgba(190, 110, 40, 0.9)' },
-    // True hotspots only.
-    { position: 0.88, color: '#f59e0b' },
-    { position: 1.0, color: '#fcd34d' },
+    { position: 0.42, color: withAlpha(ACCENT.base, 0.8) },
+    // Frequent — where the eye starts reading "a lot".
+    { position: 0.68, color: withAlpha(ACCENT.mid, 0.92) },
+    // True hotspots only, and the last two stops carry the separation that the
+    // dropped hue traversal used to provide.
+    { position: 0.86, color: ACCENT.bright },
+    { position: 0.95, color: ACCENT.light },
+    { position: 1.0, color: ACCENT.peak },
   ],
 }
 

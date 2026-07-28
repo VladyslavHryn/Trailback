@@ -86,40 +86,46 @@
   --color-ink-200: #ccd0ce;
   --color-ink-50: #f4f2ec;
 
-  /* ACCENTS — TWO, not four.
-     The previous pass ran four (amber, jade, periwinkle, rose), one per
-     screen, which is why consecutive screens read as different products: a
-     colour that changes every section isn't a system, it's decoration. Two
-     survive, and each owns a MEANING that holds across every screen:
+  /* ACCENT — ONE.
+     Earlier passes ran four (amber, jade, periwinkle, rose), one per screen,
+     which is why consecutive screens read as different products: a colour that
+     changes every section isn't a system, it's decoration. Cutting it to two
+     was not enough, for the reason set out below.
 
-       trail (amber) — MAGNITUDE. Any "how much": the headline number a
-         screen is built around, the hot end of the heat ramp, the
-         highlighted column in a chart, the primary action. If a reader asks
-         "which is the big number here", amber answers it, every time.
+     EXACTLY ONE ACCENT SURVIVES: trail (amber). Everything in the product that
+     is data, a quantity, or something the reader is meant to notice is this
+     ramp. Everything else is the neutral ink scale. There is no second accent
+     to choose between, which is the point — a choice is what produced the mess
+     described below.
 
-       signal (jade) — PLACE IDENTITY. Anything the clustering engine
-         recognised as somewhere: map pins, place and district names, the
-         section eyebrows that label where they are in the story.
+     WHAT WAS HERE AND WHY IT WENT. A second jade family carried "place
+     identity" — pins, place names, section eyebrows — on the reasoning that
+     amber-against-jade is the old cartographic pairing of warm relief over cool
+     hydrography. The reasoning is real and the result still failed, because the
+     two meanings are not separable in this product: a place IS a quantity of
+     time, so "how much" and "where" competed for the same marks. Scrolling the
+     story you met amber bars under "Де ти був найдовше", darker ochre bars under
+     "Твої райони", mint bars and a mint headline word under "Категорії місць",
+     and a mint eyebrow on "ПІДСУМОК" — one dataset in three palettes. Measured
+     on the map before the sweep: 1488 of 1504 lit heat samples read as teal
+     while the routes beside them were pure amber.
 
-     Periwinkle is gone deliberately. A violet-blue accent on a dark surface
-     is the single most over-used pairing in generated dashboards — it
-     arrives by default rather than by decision, and it was carrying "time"
-     here, which amber already covers as a magnitude. Rose is gone because
-     nothing needed a third series once the rainbow district palette was
-     replaced by a single-hue magnitude scale.
+     Periwinkle and rose went earlier, for the same underlying reason: they were
+     colours without meanings.
 
-     Amber against jade is also the old cartographic pairing — warm relief
-     over cool hydrography — which is the right register for a product whose
-     whole subject is a map. */
+     ROLE, NOT SECTION, picks the step. 400 is the data tone — bars, big
+     numerals, eyebrows, route strokes, chart highlights. 300 is the same ramp
+     one step up, for small text and ticks that need more lift to stay legible
+     at 10-13px. 500/600 are the deep end of the heat ramp and hover states.
+     Nothing picks a step because of which screen it is on.
+
+     PAIRED WITH src/map/accent.ts, which holds the same ramp for canvas and
+     Leaflet, where a CSS variable can't be used as a fill. The two lists are
+     kept in step by hand; neither may drift. */
   --color-trail-600: #b45309;
   --color-trail-500: #d97706;
   --color-trail-400: #f59e0b;
   --color-trail-300: #fcd34d;
-
-  --color-signal-600: #0f9b76;
-  --color-signal-500: #25c79c;
-  --color-signal-400: #5fdcb9;
-  --color-signal-300: #8fe9d1;
 
   /* TYPE SCALE. A 1.25 (major third) geometric progression off a 16px body,
      rounded to whole pixels, instead of a size invented per screen. Adjacent
@@ -383,10 +389,15 @@ body::after {
   white-space: nowrap;
 }
 
+/* SIZE CARRIES MAGNITUDE, alongside brightness. `--pin-size` is set per marker
+   from the place's share of the top place's time (see createPlaceIcon), so a
+   home you spent 200 days at is visibly a bigger mark than a café you visited
+   nine times — instead of both being the same 10px dot in different shades,
+   where the only cue was a brightness difference the eye has to hunt for. */
 .trail-pin__dot {
   position: relative;
-  width: 10px;
-  height: 10px;
+  width: var(--pin-size, 10px);
+  height: var(--pin-size, 10px);
   flex: none;
   border-radius: 9999px;
   background: var(--pin);
@@ -398,6 +409,22 @@ body::after {
     0 0 0 1.5px rgba(11, 13, 14, 0.85),
     0 0 7px var(--pin),
     0 0 18px color-mix(in srgb, var(--pin) 55%, transparent);
+}
+
+/* SECONDARY PLACES. The map marks eight places but names only the four that fit
+   (see MAX_LABELLED_PINS and the collision pass), which left four bare dots
+   floating with no explanation and the same visual weight as the named ones —
+   they read as debris rather than as "smaller places, hover to see".
+   Held back rather than hidden: they are real places the reader visited, and
+   deleting data to tidy a screen is the wrong trade. Dimmed, and with the
+   attention-seeking pulse ring removed, so the eye lands on the named pins
+   first and finds these only when it looks for them. */
+.trail-pin--quiet {
+  opacity: 0.45;
+}
+
+.trail-pin--quiet .trail-pin__dot::after {
+  animation: none;
 }
 
 /* One slow outward ring, so a pin reads as a live signal rather than a
@@ -492,7 +519,7 @@ body::after {
   position: absolute;
   inset: -9px;
   border-radius: 9999px;
-  background: rgba(37, 199, 156, 0.3);
+  background: rgba(245, 158, 11, 0.3);
   animation: trail-pulse 2.6s ease-out infinite;
 }
 
@@ -501,9 +528,9 @@ body::after {
   position: absolute;
   inset: 0;
   border-radius: 9999px;
-  background: var(--color-signal-500);
+  background: var(--color-trail-400);
   border: 2px solid var(--color-ink-950);
-  box-shadow: 0 0 10px rgba(37, 199, 156, 0.75);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.75);
 }
 
 @keyframes trail-pulse {

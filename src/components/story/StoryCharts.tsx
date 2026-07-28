@@ -8,36 +8,25 @@ import { cn } from '../../lib/cn'
 // only ever shows a single measure at a time.
 
 /**
- * Which accent a chart speaks in — and there are only two, because the
- * palette only means two things.
+ * ONE accent, for every chart in the story.
  *
- * `magnitude` (amber) is the default and covers anything answering "how
- * much": hours in a day, activity per weekday, distance. It is the SAME
- * amber as every hero number in the story, which is the point — a
- * highlighted column and a headline figure are the same kind of statement,
- * so they must not be different colours. `place` (jade) is only for charts
- * whose rows are named locations.
+ * There used to be a per-chart choice — `magnitude` in amber for "how much",
+ * `place` in jade for charts whose rows were named locations — and before that
+ * a third periwinkle "time" accent. Each was defended on its own terms and the
+ * set was still wrong: a reader scrolling the story met amber bars under
+ * "Де ти був найдовше", ochre bars under "Твої райони" and mint bars under
+ * "Категорії місць", which reads as a randomly coloured page rather than as
+ * three views of one history. Category is not a quantity, so it has no business
+ * consuming the only channel the page has for showing quantity.
  *
- * A third, periwinkle "time" accent used to exist. Time isn't a separate
- * category from magnitude here — the charts measure how MUCH activity falls
- * in an hour — so it was a colour without a meaning, and a violet-blue one
- * at that, which is the most default-looking choice available on a dark
- * surface.
+ * The bar's LENGTH says how much; the colour says "this is data". Same amber as
+ * every hero figure, every eyebrow and every route on the map.
  */
-export type ChartAccent = 'magnitude' | 'place'
-
-const ACCENT_TOKENS: Record<ChartAccent, { bar: string; text: string; glow: string }> = {
-  magnitude: {
-    bar: 'var(--color-trail-400)',
-    text: 'text-trail-300',
-    glow: '0 0 26px rgba(245, 158, 11, 0.5)',
-  },
-  place: {
-    bar: 'var(--color-signal-500)',
-    text: 'text-signal-300',
-    glow: '0 0 26px rgba(37, 199, 156, 0.45)',
-  },
-}
+const ACCENT_TOKENS = {
+  bar: 'var(--color-trail-400)',
+  text: 'text-trail-300',
+  glow: '0 0 26px rgba(245, 158, 11, 0.5)',
+} as const
 
 type ColumnChartProps = {
   values: number[]
@@ -46,7 +35,6 @@ type ColumnChartProps = {
   /** Render only every Nth label, so 24 hour ticks don't collide. */
   labelStep?: number
   ariaLabel: string
-  accent?: ChartAccent
 }
 
 /**
@@ -65,11 +53,10 @@ export function ColumnChart({
   highlightIndex,
   labelStep = 1,
   ariaLabel,
-  accent = 'magnitude',
 }: ColumnChartProps) {
   const prefersReducedMotion = useReducedMotion()
   const max = Math.max(...values, 1)
-  const tokens = ACCENT_TOKENS[accent]
+  const tokens = ACCENT_TOKENS
 
   return (
     <div role="img" aria-label={ariaLabel}>
@@ -150,7 +137,6 @@ type BreakdownBarsProps = {
   rows: BreakdownRow[]
   /** Shown at the right of each row above the bar, e.g. a percentage. */
   showPercent?: boolean
-  accent?: ChartAccent
 }
 
 /**
@@ -161,17 +147,17 @@ type BreakdownBarsProps = {
 export function BreakdownBars({
   rows,
   showPercent = false,
-  accent = 'place',
 }: BreakdownBarsProps) {
   const prefersReducedMotion = useReducedMotion()
-  const tokens = ACCENT_TOKENS[accent]
+  const tokens = ACCENT_TOKENS
 
   return (
     <ul className="flex flex-col gap-6">
       {rows.map((row, i) => {
-        // A row's own colour wins when it has one — the district rows carry
-        // the same per-district hue as their map pins, which is the whole
-        // point of that palette. The accent is the fallback.
+        // A row may still override, but nothing in the story does any more:
+        // per-row hues were exactly what made three breakdown sections look
+        // like three unrelated palettes. The accent is the answer, not the
+        // fallback.
         const color = row.color ?? tokens.bar
         return (
           <li key={row.key} className="group">

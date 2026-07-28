@@ -40,7 +40,7 @@ export function MapLayerToggle({ value, onChange }: MapLayerToggleProps) {
             aria-pressed={active}
             className={cn(
               'inline-flex items-center gap-2 rounded-lg px-3 py-2 font-mono text-[11px] transition-colors duration-200',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-400',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-trail-300',
               active
                 ? 'bg-trail-500/15 text-trail-300'
                 : 'text-ink-400 hover:bg-ink-800/70 hover:text-ink-200',

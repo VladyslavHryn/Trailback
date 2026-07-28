@@ -12,11 +12,22 @@ import {
   type HeatScale,
 } from '../map/aggregateHeatmapPoints'
 import { buildRoutes } from '../map/buildRoutes'
+import { buildRouteDensity, groupRouteLevels } from '../map/routeDensity'
+import { ACCENT, accentShade } from '../map/accent'
 import { robustBounds } from '../map/robustBounds'
 import { selectVisibleLabels } from '../map/labelCollision'
 import { HEAT_CONFIG, toLeafletOptions } from '../map/heatConfig'
 
 const MAX_PLACE_MARKERS = 8
+
+// How a route stretch's travel frequency becomes a stroke. Both ends of both
+// ramps matter: the minimum has to survive on the CARTO dark basemap without
+// being mistaken for a road casing, and the maximum has to stay narrow enough
+// that parallel streets a block apart don't merge into one bar.
+const ROUTE_MIN_WEIGHT = 0.9
+const ROUTE_MAX_WEIGHT = 3.4
+const ROUTE_MIN_OPACITY = 0.18
+const ROUTE_MAX_OPACITY = 0.92
 
 // Only the strongest few pins get a written label. Every pin carrying its
 // name is how a map turns into a wall of overlapping chips the moment two
@@ -49,10 +60,24 @@ function truncate(value: string, max = 22): string {
  * `rank` is optional: the results map numbers its top places, while the
  * preview is naming one or two landmarks where a rank would be meaningless.
  */
+/** Diameter of a place dot at the extremes of the time-spent scale. */
+const PIN_MIN_PX = 6
+const PIN_MAX_PX = 15
+
 export function createPlaceIcon(
   rank: number | null,
   color: string,
   label: string | null,
+  /**
+   * Share (0..1) of the top place's time. Drives the dot's DIAMETER; its colour
+   * already carries the same quantity via accentShade, and the two together are
+   * what make a secondary place read as secondary at a glance. Defaults to the
+   * top of the scale so the landing preview, which ranks nothing, draws full
+   * size.
+   */
+  share = 1,
+  /** Held back visually: a place worth marking but not worth reading yet. */
+  deEmphasised = false,
 ) {
   const rankHtml =
     rank === null
@@ -66,9 +91,15 @@ export function createPlaceIcon(
        </span>`
     : ''
 
+  // Square-rooted for the same reason accentShade eases its input: time spent
+  // is heavy-tailed, so on a linear scale every place except the top one lands
+  // at the minimum size.
+  const eased = Math.sqrt(Math.min(Math.max(share, 0), 1))
+  const size = (PIN_MIN_PX + eased * (PIN_MAX_PX - PIN_MIN_PX)).toFixed(1)
+
   return L.divIcon({
     className: '',
-    html: `<div class="trail-pin" style="--pin:${color}">
+    html: `<div class="trail-pin${deEmphasised ? ' trail-pin--quiet' : ''}" style="--pin:${color};--pin-size:${size}px">
              <span class="trail-pin__dot"></span>
              ${labelHtml}
            </div>`,
@@ -394,71 +425,53 @@ export function MapView({
       }
 
       if (layer === 'routes') {
-        // Thin, low-opacity strokes on a canvas renderer. Thin because the
-        // information here is the SHAPE of the network and where strokes
-        // overlap — a heavy line would merge neighbouring streets into one
-        // blob and destroy exactly that; low-opacity because overlapping
-        // passes then accumulate, so a commute driven three hundred times
-        // reads brighter than a road taken once, for free.
-        // Same reason as the heatmap: a run of identical visit samples draws
-        // as a stationary knot in the middle of a path that never stopped.
-        // AMBER, and drawn TWICE. Jade sat in the same hue family CARTO's
-        // dark basemap uses for water and parks, so a 1.1px jade hairline at
-        // 32% dissolved into the tiles it was drawn over — barely visible
-        // even where the reader had walked hundreds of times.
-        //
-        // Two passes on two renderers, so every wide stroke is under every
-        // thin one: a broad dim pass that pools into a glow wherever paths
-        // run together, and a narrow bright core that keeps a single street
-        // legible. Canvas can't blur, so the bloom comes from width and
-        // accumulation rather than a filter — which is also what makes
-        // frequency readable, since overlapping passes stack while a road
-        // taken once stays faint.
-        const glowRenderer = L.canvas({ padding: 0.4 })
-        const coreRenderer = L.canvas({ padding: 0.4 })
-        const segments = buildRoutes(movementPoints(points))
+        // FREQUENCY-MAPPED, not one stroke per trip. See routeDensity.ts for
+        // the arithmetic showing why per-trip alpha cannot express density past
+        // about a dozen overlaps, which is where the "spaghetti" came from.
+        const levels = groupRouteLevels(
+          buildRouteDensity(buildRoutes(movementPoints(points))),
+        )
 
-        for (const segment of segments) {
-          L.polyline(segment, {
-            renderer: glowRenderer,
-            color: '#d97706',
-            weight: 7,
-            opacity: 0.09,
-            lineCap: 'round',
-            lineJoin: 'round',
-            interactive: false,
-          }).addTo(layerGroup)
-        }
+        // One renderer for the whole layer: separate canvases per level would
+        // stack their own compositing and reintroduce the saturation this is
+        // meant to remove.
+        const renderer = L.canvas({ padding: 0.4 })
 
-        for (const segment of segments) {
-          L.polyline(segment, {
-            renderer: coreRenderer,
-            color: '#fbbf24',
-            weight: 1.4,
-            opacity: 0.5,
+        for (const level of levels) {
+          // Width and brightness both climb with frequency, because either one
+          // alone is ambiguous on a dark basemap — a dim wide line and a bright
+          // thin one read as equally "present".
+          L.polyline(level.lines, {
+            renderer,
+            color: accentShade(Math.max(level.t, 0.12)),
+            weight: ROUTE_MIN_WEIGHT + level.t * (ROUTE_MAX_WEIGHT - ROUTE_MIN_WEIGHT),
+            opacity: ROUTE_MIN_OPACITY + level.t * (ROUTE_MAX_OPACITY - ROUTE_MIN_OPACITY),
             lineCap: 'round',
             lineJoin: 'round',
             interactive: false,
           }).addTo(layerGroup)
         }
       }
+
     } else {
       const latLngs = DEMO_POINTS.map((p) => [p.lat, p.lng] as [number, number])
       map.fitBounds(L.latLngBounds(latLngs), { padding: [64, 64] })
 
-      // The demo route is a ROUTE between recognised places, not a density
-      // reading, so it takes the place accent (jade) rather than the heat
-      // amber — amber is reserved for magnitude everywhere in the product.
-      // Soft blurred glow line beneath the crisp dashed line, for depth.
+      // Same accent as every real layer. This used to be jade, on the argument
+      // that a route between named places is a different KIND of thing from a
+      // density reading and deserved the "place" accent — but the product only
+      // has one accent now, and a placeholder in a colour the real map never
+      // uses is a promise the product doesn't keep.
+      // Soft glow line beneath the crisp dashed line, for depth.
       L.polyline(latLngs, {
-        color: '#25c79c',
+        color: ACCENT.mid,
         weight: 10,
         opacity: 0.22,
         className: 'trail-route-glow',
       }).addTo(layerGroup)
 
       L.polyline(latLngs, {
-        color: '#5fdcb9',
+        color: ACCENT.light,
         weight: 2.5,
         opacity: 0.9,
         lineCap: 'round',
@@ -505,7 +518,8 @@ export function MapView({
     const topDuration = shown[0]?.totalDurationSec || 1
 
     shown.forEach((place, index) => {
-      const color = districtShade(place.totalDurationSec / topDuration)
+      const share = place.totalDurationSec / topDuration
+      const color = districtShade(share)
 
       // Only the top few pins carry a visible name; the rest are bare dots
       // whose name is one hover away. A coordinate pair is a placeholder for
@@ -515,7 +529,9 @@ export function MapView({
       const pinLabel = index < MAX_LABELLED_PINS && hasRealName ? place.displayName : null
 
       L.marker([place.lat, place.lng], {
-        icon: createPlaceIcon(index + 1, color, pinLabel),
+        // A pin with no name is explicitly secondary: dimmed and un-pulsed, so
+        // the unlabelled dots stop competing with the four that are readable.
+        icon: createPlaceIcon(index + 1, color, pinLabel, share, pinLabel === null),
         // Higher-ranked pins sit above lower ones, so the most important
         // label is never the one hidden underneath.
         zIndexOffset: (MAX_PLACE_MARKERS - index) * 10,
@@ -620,8 +636,32 @@ function ZoomButtons({
   // z-900 clears Leaflet's panes (which top out at 700) and the section's
   // bottom scrim, while staying under the sticky caption (800) and the fixed
   // header (1100) — nothing here should ever paint over the chrome.
+  //
+  // DIRECTLY UNDER the map section's caption card, sharing its right edge, so
+  // the map's controls read as one group with the text that explains them
+  // rather than as two unrelated things in opposite corners.
+  //
+  // The vertical offset is entirely MEASURED, which is what makes this safe:
+  //
+  //   --trail-header-h      the fixed header, which grows a row of month chips
+  //                         whenever a year is selected
+  //   --trail-map-caption-h the caption card, whose height changes with the
+  //                         selected layer and again at every breakpoint
+  //
+  // plus 2rem above the card and 1.5rem below it. Both variables carry a
+  // fallback, so any other mount of this map (one without a caption above it)
+  // still places the buttons sensibly instead of collapsing the calc.
+  //
+  // Getting this from a constant was never an option: this control is z-900
+  // against the caption's 800, so being wrong by a line of text prints the
+  // buttons over the sentence rather than politely behind it.
   return (
-    <div className="absolute right-6 top-1/2 z-[900] flex -translate-y-1/2 flex-col gap-1.5 md:right-10">
+    <div
+      className="absolute right-6 z-[900] flex flex-col gap-1.5 md:right-10"
+      style={{
+        top: 'calc(var(--trail-header-h, 9rem) + var(--trail-map-caption-h, 0px) + 3.5rem)',
+      }}
+    >
       <ZoomButton label="Збільшити" onClick={onZoomIn} disabled={!canZoomIn}>
         +
       </ZoomButton>

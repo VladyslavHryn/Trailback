@@ -23,10 +23,11 @@ const SEGMENT_GAP_SEC = 25 * 60
 // untracked flight); drawing it would put a stroke straight across the map.
 const MAX_PLAUSIBLE_KMH = 200
 
-// Vertices are what cost the renderer, so the whole layer is capped and the
-// budget spent evenly. A year of pings every few minutes is ~100k vertices;
-// far more than a screen can resolve, and enough to make panning stutter.
-const MAX_TOTAL_VERTICES = 24_000
+// Vertices are what cost the renderer, so the whole layer is capped.
+// Modern Leaflet Canvas renderer easily handles over 150k vertices with zero lag,
+// especially with its own screen-space pixel simplification (smoothFactor).
+// A higher limit ensures raw GPS tracks retain detail instead of looking like straight lines.
+const MAX_TOTAL_VERTICES = 150_000
 
 // Below this, a "segment" is a handful of jittery pings while standing
 // still, which draws as a scribble rather than a path.
@@ -89,8 +90,9 @@ export function buildRoutes(points: ParsedPoints): RouteSegment[] {
  * Thins every segment by the same stride until the whole layer fits the
  * vertex budget. Thinning uniformly (rather than dropping whole segments)
  * keeps the SHAPE of the network — every trip still appears, just with
- * fewer intermediate points — whereas dropping segments would silently
- * delete journeys from the map.
+ * fewer intermediate points.
+ * Short segments are excluded from thinning to prevent them from collapsing
+ * into straight lines.
  */
 function capVertices(segments: RouteSegment[]): RouteSegment[] {
   const total = segments.reduce((sum, s) => sum + s.length, 0)
@@ -100,6 +102,10 @@ function capVertices(segments: RouteSegment[]): RouteSegment[] {
 
   const thinned: RouteSegment[] = []
   for (const segment of segments) {
+    if (segment.length < 8) {
+      thinned.push(segment)
+      continue
+    }
     const out: RouteSegment = []
     for (let i = 0; i < segment.length; i += stride) out.push(segment[i])
     // Always keep the true end point so a trip doesn't visibly stop short.

@@ -48,7 +48,6 @@ export function TimePatternsSection({ timePatterns }: TimePatternsSectionProps) 
             highlightIndex={timePatterns.busiestHour}
             labelStep={3}
             ariaLabel="Активність за годинами доби"
-            accent="magnitude"
           />
         </div>
 
@@ -63,7 +62,6 @@ export function TimePatternsSection({ timePatterns }: TimePatternsSectionProps) 
             labels={WEEKDAY_LABELS}
             highlightIndex={timePatterns.busiestWeekdayIndex}
             ariaLabel="Активність за днями тижня"
-            accent="magnitude"
           />
         </div>
       </div>

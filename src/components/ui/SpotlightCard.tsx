@@ -24,9 +24,11 @@ type SpotlightCardProps = {
 export function SpotlightCard({
   children,
   className,
-  // Jade by default, not amber: amber is the density accent and only the
-  // one card actually carrying a magnitude should reach for it.
-  glow = 'rgba(37, 199, 156, 0.13)',
+  // The one accent, kept faint. The default used to be jade so that only a
+  // card carrying a magnitude reached for amber — but the product has a single
+  // accent now, so the distinction is made with ALPHA instead of with a second
+  // hue: a card that matters passes a stronger value in.
+  glow = 'rgba(245, 158, 11, 0.07)',
 }: SpotlightCardProps) {
   const ref = useRef<HTMLDivElement>(null)
   const prefersReducedMotion = useReducedMotion()

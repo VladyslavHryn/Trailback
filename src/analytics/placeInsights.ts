@@ -7,11 +7,19 @@
 
 import type { Place } from './places'
 import { translateSemanticLabel, type GeocodedPlace } from './geocoding'
+import { accentShade } from '../map/accent'
 
 export interface DisplayPlace extends Place {
   displayName: string
   category: string | null
   district: string | null
+  /**
+   * Google's own label for this place ("Дім", "Робота (ймовірно)"), when the
+   * cluster carries one. Kept as a SECONDARY tag rather than the primary name:
+   * "Дім (ймовірно)" says less than the actual street address Foursquare or
+   * Nominatim give, so the geocoded name wins and this badge supplements it.
+   */
+  semanticBadge: string | null
 }
 
 export function buildDisplayPlaces(
@@ -20,18 +28,26 @@ export function buildDisplayPlaces(
 ): DisplayPlace[] {
   return places.map((place) => {
     const g = geocoded.get(place.clusterId)
-    // Google's own label first — it knows this is specifically YOUR home,
-    // which no reverse-geocoder can. An unrecognised label translates to
-    // null and falls through rather than being shown raw.
-    const ownLabel = place.semanticLabel ? translateSemanticLabel(place.semanticLabel) : null
+
+    // Geocoded name (Foursquare → Nominatim) is the primary display name:
+    // it gives a real address or venue name. Google's semantic label (HOME,
+    // INFERRED_WORK, …) is precise about WHOSE place this is, but not about
+    // WHAT the place is — "Дім (ймовірно)" is less informative than
+    // "вул. Хрещатик, 1" or "ПриватБанк". The label is preserved as a
+    // secondary badge the UI can render alongside the name.
     const displayName =
-      ownLabel ?? g?.name ?? `${place.lat.toFixed(3)}, ${place.lng.toFixed(3)}`
+      g?.name ?? `${place.lat.toFixed(3)}, ${place.lng.toFixed(3)}`
+
+    const semanticBadge = place.semanticLabel
+      ? translateSemanticLabel(place.semanticLabel)
+      : null
 
     return {
       ...place,
       displayName,
       category: g?.category ?? null,
       district: g?.district ?? null,
+      semanticBadge,
     }
   })
 }
@@ -90,42 +106,22 @@ export function summarizeCategories(
 // ~0.13 because that's roughly the sRGB gamut boundary for this hue at these
 // lightnesses — asking for more just gets silently clamped by the browser,
 // which flattens the top of the ramp instead of extending it.
-const DISTRICT_SHADE_STOPS = [
-  { l: 30, c: 0.045 }, // least time: deep, nearly grey jade
-  { l: 45, c: 0.075 },
-  { l: 60, c: 0.1 },
-  { l: 73, c: 0.12 },
-  { l: 86, c: 0.13 }, // most time: bright and saturated
-]
-
 /**
  * Colour for a district/place given its share of the top entry's time (0..1).
  *
- * Interpolates in OKLCH rather than sRGB. Mixing hex values numerically
- * darkens and desaturates through the middle of a ramp (the classic muddy
- * midpoint); OKLCH is perceptually uniform, so equal steps in the input look
- * like equal steps in brightness, which is the entire point of a magnitude
- * scale.
+ * DELEGATES to the product accent rather than owning a ramp. It used to carry
+ * its own OKLCH stops at hue 172 — jade — which is why the place pins on the
+ * map shared no colour with the routes drawn beside them and the heatmap under
+ * them. The scale itself (perceptually uniform, square-rooted so the crowded
+ * low end gets more of the range) now lives in one place for every layer that
+ * needs it; see src/map/accent.ts.
+ *
+ * The name stays because every call site means the same thing by it — shade a
+ * magnitude against the largest one — and renaming it would touch four files to
+ * say nothing new.
  */
 export function districtShade(share: number): string {
-  const t = Math.min(Math.max(share, 0), 1)
-  // Square-rooted so the low end of the range gets more of the ramp: most
-  // places sit far below the top one, and a linear scale would collapse them
-  // all into the same near-black.
-  const eased = Math.sqrt(t)
-
-  const scaled = eased * (DISTRICT_SHADE_STOPS.length - 1)
-  const lower = Math.floor(scaled)
-  const upper = Math.min(lower + 1, DISTRICT_SHADE_STOPS.length - 1)
-  const f = scaled - lower
-
-  const a = DISTRICT_SHADE_STOPS[lower]
-  const b = DISTRICT_SHADE_STOPS[upper]
-  const l = a.l + (b.l - a.l) * f
-  const c = a.c + (b.c - a.c) * f
-
-  // Hue fixed at the jade "place" accent's angle.
-  return `oklch(${l.toFixed(1)}% ${c.toFixed(3)} 172)`
+  return accentShade(share)
 }
 
 export interface DistrictBreakdown {

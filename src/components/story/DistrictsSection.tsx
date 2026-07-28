@@ -3,7 +3,7 @@ import { Reveal } from './Reveal'
 import { BreakdownBars, type BreakdownRow } from './StoryCharts'
 import { exactDurationIfDifferent, formatDaysUniform } from './format'
 import { NumberTicker } from '../ui/NumberTicker'
-import { districtShade, type DistrictBreakdown } from '../../analytics/placeInsights'
+import type { DistrictBreakdown } from '../../analytics/placeInsights'
 
 type DistrictsSectionProps = {
   districts: DistrictBreakdown[]
@@ -32,10 +32,11 @@ export function DistrictsSection({ districts, geocodingPending }: DistrictsSecti
     value: formatDaysUniform(d.totalDurationSec),
     meta: exactDurationIfDifferent(d.totalDurationSec) ?? undefined,
     ratio: d.shareOfKnownTime,
-    // Same single-hue magnitude scale as the map pins: brighter = more of
-    // your life spent there. Scaled against the leader so the ramp uses its
-    // full range instead of bunching up at the bottom.
-    color: districtShade(d.totalDurationSec / (top?.totalDurationSec || 1)),
+    // NO per-row colour. These bars used to carry a per-district shade of the
+    // magnitude ramp, which is why this section read as "duller ochre" beside
+    // the top-places bars: every row was a different, mostly darker amber. The
+    // bar's LENGTH already says how much, so the colour is free to be the one
+    // accent, at full saturation, identical in every breakdown on the site.
   }))
 
   return (
@@ -54,8 +55,7 @@ export function DistrictsSection({ districts, geocodingPending }: DistrictsSecti
                     the words do. */}
                 <div className="mt-8 flex flex-wrap items-end gap-x-8 gap-y-4">
                   <p
-                    className="numeral-hero"
-                    style={{ color: districtShade(1) }}
+                    className="numeral-hero text-trail-400"
                   >
                     <NumberTicker value={top.shareOfKnownTime * 100} suffix="%" />
                   </p>
@@ -83,7 +83,7 @@ export function DistrictsSection({ districts, geocodingPending }: DistrictsSecti
 
           {rows.length > 0 && (
             <div className="mt-10">
-              <BreakdownBars rows={rows} showPercent accent="place" />
+              <BreakdownBars rows={rows} showPercent />
             </div>
           )}
 

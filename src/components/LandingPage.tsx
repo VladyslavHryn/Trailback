@@ -30,23 +30,20 @@ const CROP_CORNERS = [
   { key: 'br', box: 'bottom-0 right-0', h: 'bottom-0 right-0', v: 'bottom-0 right-0' },
 ] as const
 import { TILE_URL, TILE_ATTRIBUTION, createPlaceIcon } from './MapView'
+import { ACCENT } from '../map/accent'
 
 const GUIDE_STEPS = [
   {
-    title: 'Відкрий Google Takeout',
-    body: 'Перейди на takeout.google.com і увійди у свій акаунт Google.',
+    title: 'Android',
+    body: 'Налаштування телефону → Локація (Location) → Хронологія (Timeline) → Експортувати дані Хронології (Export Timeline data) → зберегти файл.',
   },
   {
-    title: 'Обери лише Timeline',
-    body: 'Натисни «Deselect all» і онови позначку тільки біля Location History (Timeline).',
+    title: 'iPhone',
+    body: 'Google Maps → профіль → Ваша хронологія → ⋯ → Налаштування локації та конфіденційності → Export Timeline data.',
   },
   {
-    title: 'Сформуй експорт у JSON',
-    body: 'Вибери формат JSON, один архів, і натисни «Create export».',
-  },
-  {
-    title: 'Розпакуй і завантаж сюди',
-    body: 'Коли Google надішле лист — розпакуй архів і перетягни у зону вище файл Records.json (або Timeline.json у новішому форматі) з нього.',
+    title: 'Завантаж сюди',
+    body: 'Перетягни експортований файл (обов\'язково JSON формат) у зону вище або обери його кнопкою «Обрати файл».',
   },
 ]
 
@@ -292,7 +289,7 @@ export function LandingPage({
                   amber. */}
               <span className="inline-flex items-center gap-1.5">
                 <ShieldCheck
-                  className="h-4 w-4 text-signal-400"
+                  className="h-4 w-4 text-ink-400"
                   strokeWidth={ICON_STROKE}
                 />
                 Файл обробляється локально в браузері
@@ -312,9 +309,9 @@ export function LandingPage({
                 the decision is still theirs. Held tertiary by COLOUR rather
                 than by inventing a smaller size off the scale. */}
             <p className="mt-3 max-w-[56ch] text-caption leading-relaxed text-ink-600">
-              Виняток один: щоб підписати топ-місця назвами й районами, до
-              OpenStreetMap піде кілька десятків округлених координат. Ніколи
-              не сам файл.
+              Виняток один: щоб підписати топ-місця назвами й районами, кілька
+              десятків округлених координат піде до Foursquare і OpenStreetMap.
+              Ніколи не сам файл.
             </p>
           </div>
 
@@ -363,7 +360,7 @@ function GuideModal({
           >
             <div className="flex items-start justify-between">
               <h2 className="font-display text-lg font-semibold text-ink-50">
-                Як отримати експорт з Google Takeout
+                Як експортувати свою хронологію
               </h2>
               <button
                 type="button"
@@ -649,7 +646,7 @@ function HeroDemo() {
 
     markersRef.current = DEMO_STOPS.map((p) =>
       L.marker([p.lat, p.lng], {
-        icon: createPlaceIcon(null, '#5fdcb9', p.label),
+        icon: createPlaceIcon(null, ACCENT.light, p.label),
         opacity: 0,
       }).addTo(map),
     )
@@ -797,7 +794,7 @@ function HeroDemo() {
             <motion.div
               key="accumulated-label"
               exit={{ opacity: 0 }}
-              className="absolute left-3 top-3 rounded-md bg-ink-950/70 px-2 py-1 font-mono text-[11px] text-signal-300"
+              className="absolute left-3 top-3 rounded-md bg-ink-950/70 px-2 py-1 font-mono text-[11px] text-trail-300"
             >
               6 років · уся історія одразу
             </motion.div>

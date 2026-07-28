@@ -323,6 +323,8 @@ export function ResultsStory({
           places={significantDisplayPlaces}
           layer={mapLayer}
           heatScale={heatScale}
+          rangeLabel={describeRange(range)}
+          isFullHistory={range.kind === 'all'}
           onLayerChange={setMapLayer}
         />
 
@@ -339,7 +341,12 @@ export function ResultsStory({
 
         <CategoriesSection categories={categories} />
 
-        <OutroSection distance={result.distance} onLoadAnother={onLoadAnother} />
+        <OutroSection
+          distance={result.distance}
+          rangeLabel={describeRange(range)}
+          isFullHistory={range.kind === 'all'}
+          onLoadAnother={onLoadAnother}
+        />
       </main>
     </div>
   )

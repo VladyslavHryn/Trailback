@@ -127,6 +127,16 @@
   --color-trail-400: #f59e0b;
   --color-trail-300: #fcd34d;
 
+  /* TEAL — DECORATIVE ONLY. Not a data accent. Used for atmospheric effects:
+     backgrounds, glows, contour lines, card borders, particle mix. The amber
+     accent system carries all data-encoding; this family only creates the
+     environment. Reintroduced specifically for the dark-terrain aesthetic
+     (reference: topographic map with teal contour glow). */
+  --color-glow-teal: #3fb8a8;
+  --color-glow-teal-dim: #1a6b60;
+  --color-glow-teal-muted: rgba(63, 184, 168, 0.35);
+  --color-glow-teal-faint: rgba(63, 184, 168, 0.08);
+
   /* TYPE SCALE. A 1.25 (major third) geometric progression off a 16px body,
      rounded to whole pixels, instead of a size invented per screen. Adjacent
      steps are close enough to sit together without clashing and far enough
@@ -167,26 +177,19 @@ body {
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 
-  /* DEPTH, layer 1 of 2: an ambient wash made of LIGHT, not of accent.
-     The earlier attempts at this were built from the accent colours — three
-     radials (amber, jade, periwinkle), then a single narrowed amber one — and
-     all of them failed the same way: a large amber field cannot coexist with
-     the amber things that are supposed to draw the eye, so the page read as
-     "the top half is tinted" instead of "there is a light source here". That
-     risk is higher now, not lower, because the route on the map is amber too.
-     So the hue is dropped entirely. A near-white radial anchored behind the
-     headline acts as the key light, and a cool desaturated slate in the
-     opposite corner as a counter-light — both far below the threshold where
-     a colour is legible AS a colour, which is exactly what makes them read as
-     illumination rather than as tint. Neither is an accent, so neither
-     competes with one.
-     `fixed` means this never repaints on scroll. */
+  /* DEPTH, layer 1: ambient washes + topographic contour pattern.
+     The teal contour pattern creates the "dark terrain map" feel from the
+     reference image. It sits at very low opacity so it reads as a surface
+     texture rather than as a visible grid. The radial washes are tinted
+     teal instead of neutral white — faint enough to read as illumination
+     rather than as a competing accent. */
   background-color: var(--color-ink-950);
   background-image:
-    radial-gradient(115% 75% at 16% 20%, rgba(255, 255, 255, 0.05), transparent 62%),
-    radial-gradient(95% 70% at 88% 82%, rgba(126, 146, 156, 0.05), transparent 66%);
+    radial-gradient(115% 75% at 16% 20%, rgba(63, 184, 168, 0.04), transparent 62%),
+    radial-gradient(95% 70% at 88% 82%, rgba(63, 184, 168, 0.03), transparent 66%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cdefs%3E%3Cstyle%3Epath%7Bfill:none;stroke:rgba(63,184,168,0.06);stroke-width:0.8%7D%3C/style%3E%3C/defs%3E%3Cpath d='M0 200 Q100 180 200 200 T400 200'/%3E%3Cpath d='M0 160 Q80 130 160 155 T320 140 400 160'/%3E%3Cpath d='M0 240 Q120 260 240 235 T400 245'/%3E%3Cpath d='M0 120 Q60 95 140 110 T280 90 400 115'/%3E%3Cpath d='M0 280 Q100 310 220 285 T400 295'/%3E%3Cpath d='M0 80 Q90 55 180 75 T360 60 400 80'/%3E%3Cpath d='M0 320 Q80 345 200 325 T400 335'/%3E%3Cpath d='M0 40 Q70 20 160 38 T340 25 400 40'/%3E%3Cpath d='M0 360 Q110 380 240 358 T400 370'/%3E%3C/svg%3E");
   background-attachment: fixed;
-  background-repeat: no-repeat;
+  background-repeat: no-repeat, no-repeat, repeat;
 }
 
 /* Literata carries `wght` only, so an `opsz` declaration would be a silently
@@ -282,6 +285,28 @@ body::after {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
+/* ── Glassmorphic card ───────────────────────────────────────────────── */
+
+/* DECORATIVE GLASS — the reference's signature element. A translucent panel
+   with a teal-tinted border and backdrop blur. Used for SpotlightCard, the
+   fixed header, pin labels, and any overlay that should feel like frosted
+   glass over the topographic background.
+   The teal is atmospheric, NOT data-carrying: it matches the contour lines
+   and the ambient washes, not any quantity. */
+.glass-card {
+  background: rgba(19, 23, 25, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(63, 184, 168, 0.12);
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.glass-card:hover {
+  border-color: rgba(63, 184, 168, 0.25);
+}
+
 /* Confines a child to a 1px ring at the element's edge — the "border
    gradient" trick, used by BorderBeam so a spinning conic gradient shows up
    only as a light travelling along the outline.
@@ -328,10 +353,11 @@ body::after {
 }
 
 .leaflet-control-attribution {
-  background: rgba(11, 13, 14, 0.82) !important;
+  background: rgba(11, 13, 14, 0.65) !important;
   color: var(--color-ink-400) !important;
   font-size: 10px !important;
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(63, 184, 168, 0.08) !important;
 }
 
 .leaflet-control-attribution a {
@@ -344,29 +370,30 @@ body::after {
 }
 
 .leaflet-control-zoom a {
-  background: rgba(19, 23, 25, 0.9) !important;
+  background: rgba(19, 23, 25, 0.6) !important;
   color: var(--color-ink-200) !important;
-  border-color: var(--color-ink-700) !important;
-  backdrop-filter: blur(6px);
+  border-color: rgba(63, 184, 168, 0.1) !important;
+  backdrop-filter: blur(12px);
 }
 
 .leaflet-control-zoom a:hover {
-  background: var(--color-ink-800) !important;
+  background: rgba(19, 23, 25, 0.8) !important;
   color: var(--color-ink-50) !important;
+  border-color: rgba(63, 184, 168, 0.25) !important;
 }
 
 .leaflet-tooltip {
-  background: rgba(19, 23, 25, 0.94) !important;
-  border: 1px solid var(--color-ink-700) !important;
+  background: rgba(19, 23, 25, 0.75) !important;
+  border: 1px solid rgba(63, 184, 168, 0.15) !important;
   color: var(--color-ink-50) !important;
   border-radius: 8px !important;
   font-size: 12px !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
 }
 
 .leaflet-tooltip-top:before {
-  border-top-color: var(--color-ink-700) !important;
+  border-top-color: rgba(63, 184, 168, 0.15) !important;
 }
 
 /* ── Place pin ───────────────────────────────────────────────────────── */
@@ -435,7 +462,7 @@ body::after {
   position: absolute;
   inset: -3px;
   border-radius: 9999px;
-  border: 1px solid var(--pin);
+  border: 1.5px solid var(--color-glow-teal);
   opacity: 0;
   animation: trail-pin-ring 3.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
@@ -452,17 +479,15 @@ body::after {
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  /* A true PILL, not a rounded rectangle: the radius is half the chip's own
-     height, so the ends are semicircles at any text length. At 7px on a 22px
-     chip the corners were merely softened, which reads as a small panel
-     rather than as a label attached to a point.
-     Sized up from 10.5px as well — the chip sits over street linework at its
-     busiest, and the previous size was legible only because nothing happened
-     to be under it. */
+  /* Glassmorphic pill: frosted glass with a faint teal border, matching the
+     card treatment everywhere else. The backdrop-filter lets the map show
+     through faintly, tying the label to its context. */
   padding: 3px 9px;
   border-radius: 9999px;
-  border: 1px solid var(--color-ink-600);
-  background: rgba(8, 10, 11, 0.94);
+  border: 1px solid rgba(63, 184, 168, 0.18);
+  background: rgba(11, 13, 14, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   font-family: var(--font-mono);
   font-size: 11.5px;
   font-weight: 500;
@@ -470,8 +495,9 @@ body::after {
   color: var(--color-ink-50);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
   box-shadow:
-    0 0 0 1.5px rgba(8, 10, 11, 0.75),
-    0 3px 12px rgba(0, 0, 0, 0.55);
+    0 0 0 1.5px rgba(8, 10, 11, 0.55),
+    0 3px 12px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 /* Suppressed by the collision pass — the dot stays, so the place is still
@@ -558,6 +584,10 @@ body::after {
 
 .trail-route-glow {
   filter: blur(6px);
+}
+
+.trail-route-glow-teal {
+  filter: blur(12px);
 }
 
 @keyframes trail-dash {

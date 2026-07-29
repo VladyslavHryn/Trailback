@@ -81,7 +81,7 @@ export function StorySection({
               a margin rule rather than as decoration. */}
           <span
             aria-hidden="true"
-            className="mt-5 hidden h-16 w-px bg-gradient-to-b from-ink-700 to-transparent md:block"
+            className="mt-5 hidden h-16 w-px bg-gradient-to-b from-glow-teal/30 to-transparent md:block"
           />
         </div>
 

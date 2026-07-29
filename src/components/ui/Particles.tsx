@@ -50,6 +50,7 @@ export function Particles({
       drift: number
       alpha: number
       phase: number
+      isTeal: boolean
     }
     let particles: Particle[] = []
     let width = 0
@@ -64,15 +65,19 @@ export function Particles({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
       const count = Math.round((density * width * height) / (1280 * 800))
-      particles = Array.from({ length: Math.max(12, count) }, () => ({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        radius: 0.6 + Math.random() * 1.6,
-        speed: 0.06 + Math.random() * 0.16,
-        drift: (Math.random() - 0.5) * 0.06,
-        alpha: 0.15 + Math.random() * 0.45,
-        phase: Math.random() * Math.PI * 2,
-      }))
+      particles = Array.from({ length: Math.max(12, count) }, () => {
+        const isTeal = Math.random() < 0.3
+        return {
+          x: Math.random() * width,
+          y: Math.random() * height,
+          radius: isTeal ? 0.8 + Math.random() * 2.0 : 0.6 + Math.random() * 1.6,
+          speed: 0.06 + Math.random() * 0.16,
+          drift: (Math.random() - 0.5) * 0.06,
+          alpha: 0.15 + Math.random() * 0.45,
+          phase: Math.random() * Math.PI * 2,
+          isTeal,
+        }
+      })
     }
 
     seed()
@@ -104,7 +109,8 @@ export function Particles({
 
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(${color}, ${p.alpha * twinkle})`
+        const c = p.isTeal ? '63, 184, 168' : color
+        ctx.fillStyle = `rgba(${c}, ${p.alpha * twinkle})`
         ctx.fill()
       }
 

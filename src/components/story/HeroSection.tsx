@@ -55,7 +55,7 @@ export function HeroSection({
              arrives by default rather than by decision, and it put two
              non-accent hues on the story's opening screen. */
           background:
-            'radial-gradient(70% 55% at 8% 78%, rgba(217, 119, 6, 0.17), transparent 68%)',
+            'radial-gradient(70% 55% at 8% 78%, rgba(217, 119, 6, 0.14), transparent 68%), radial-gradient(50% 45% at 85% 25%, rgba(63, 184, 168, 0.07), transparent 60%)',
         }}
       />
       <div

@@ -24,11 +24,9 @@ type SpotlightCardProps = {
 export function SpotlightCard({
   children,
   className,
-  // The one accent, kept faint. The default used to be jade so that only a
-  // card carrying a magnitude reached for amber — but the product has a single
-  // accent now, so the distinction is made with ALPHA instead of with a second
-  // hue: a card that matters passes a stronger value in.
-  glow = 'rgba(245, 158, 11, 0.07)',
+  // The one accent, kept faint. Teal glow for the atmospheric look, matching
+  // the glassmorphic card borders and the topographic background contours.
+  glow = 'rgba(63, 184, 168, 0.08)',
 }: SpotlightCardProps) {
   const ref = useRef<HTMLDivElement>(null)
   const prefersReducedMotion = useReducedMotion()
@@ -56,8 +54,8 @@ export function SpotlightCard({
       whileHover={prefersReducedMotion ? undefined : { y: -4 }}
       transition={{ type: 'spring', stiffness: 320, damping: 26 }}
       className={cn(
-        'group relative overflow-hidden rounded-2xl border border-ink-800 bg-ink-900/60',
-        'transition-colors duration-300 hover:border-ink-600',
+        'group relative overflow-hidden rounded-2xl glass-card',
+        'transition-colors duration-300',
         className,
       )}
     >

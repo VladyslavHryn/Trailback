@@ -184,7 +184,7 @@ export function BreakdownBars({
               </span>
             </div>
 
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-ink-800">
+            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[rgba(63,184,168,0.06)]">
               <motion.div
                 className="h-full rounded-full transition-[box-shadow] duration-300"
                 style={{ background: color }}

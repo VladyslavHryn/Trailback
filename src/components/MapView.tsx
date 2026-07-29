@@ -462,7 +462,18 @@ export function MapView({
       // density reading and deserved the "place" accent — but the product only
       // has one accent now, and a placeholder in a colour the real map never
       // uses is a promise the product doesn't keep.
-      // Soft glow line beneath the crisp dashed line, for depth.
+
+      // TEAL atmospheric glow — the widest, faintest layer. Decorative only:
+      // creates the "terrain map" feel from the reference without encoding any
+      // data. Sits under the amber layers.
+      L.polyline(latLngs, {
+        color: '#3fb8a8',
+        weight: 20,
+        opacity: 0.12,
+        className: 'trail-route-glow-teal',
+      }).addTo(layerGroup)
+
+      // Soft amber glow line beneath the crisp dashed line, for depth.
       L.polyline(latLngs, {
         color: ACCENT.mid,
         weight: 10,
@@ -690,7 +701,7 @@ function ZoomButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="flex h-9 w-9 items-center justify-center rounded-lg border border-ink-700 bg-ink-950/80 font-mono text-base leading-none text-ink-200 backdrop-blur-sm transition-colors hover:border-trail-500/60 hover:text-trail-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-trail-300 disabled:pointer-events-none disabled:opacity-35"
+      className="flex h-9 w-9 items-center justify-center rounded-lg border border-glow-teal/12 bg-ink-950/60 font-mono text-base leading-none text-ink-200 backdrop-blur-xl transition-colors hover:border-glow-teal/30 hover:text-trail-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-trail-300 disabled:pointer-events-none disabled:opacity-35"
     >
       {children}
     </button>

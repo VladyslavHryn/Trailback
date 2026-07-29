@@ -28,7 +28,7 @@ export function MapLayerToggle({ value, onChange }: MapLayerToggleProps) {
     <div
       role="group"
       aria-label="Що показувати на карті"
-      className="pointer-events-auto inline-flex gap-1 rounded-xl border border-ink-700 bg-ink-950/85 p-1 backdrop-blur-md"
+      className="pointer-events-auto inline-flex gap-1 rounded-xl border border-glow-teal/12 bg-ink-950/60 p-1 backdrop-blur-xl"
     >
       {OPTIONS.map(({ value: option, label, icon: Icon }) => {
         const active = option === value
@@ -42,7 +42,7 @@ export function MapLayerToggle({ value, onChange }: MapLayerToggleProps) {
               'inline-flex items-center gap-2 rounded-lg px-3 py-2 font-mono text-[11px] transition-colors duration-200',
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-trail-300',
               active
-                ? 'bg-trail-500/15 text-trail-300'
+                ? 'bg-glow-teal/10 text-trail-300 shadow-[0_2px_8px_rgba(63,184,168,0.15)]'
                 : 'text-ink-400 hover:bg-ink-800/70 hover:text-ink-200',
             )}
           >

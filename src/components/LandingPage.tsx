@@ -172,7 +172,7 @@ export function LandingPage({
               }}
               className={`trail-dropzone relative mt-10 rounded-2xl px-6 py-7 transition-colors duration-200 sm:px-7 ${
                 isDragActive
-                  ? 'trail-dropzone--active bg-gradient-to-b from-trail-500/[0.10] to-trail-500/[0.03]'
+                  ? 'trail-dropzone--active bg-gradient-to-b from-glow-teal/[0.08] to-glow-teal/[0.02]'
                   : 'bg-gradient-to-b from-ink-800/45 to-ink-900/25 hover:from-ink-800/60 hover:to-ink-900/35'
               }`}
             >
@@ -189,7 +189,7 @@ export function LandingPage({
                    present and correct. An inline style is immune to whatever
                    is eating them, and for exactly two animated properties it
                    is also the plainest way to say it. */
-                const bar = isDragActive ? '#f59e0b' : '#424a50'
+                const bar = isDragActive ? '#3fb8a8' : '#424a50'
                 const reach = isDragActive ? '2rem' : '1rem'
                 return (
                   <span key={key} aria-hidden="true" className={`absolute ${box}`}>
@@ -214,7 +214,7 @@ export function LandingPage({
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${
                     isDragActive
-                      ? 'border-trail-400/60 bg-trail-500/15 text-trail-300'
+                      ? 'border-glow-teal/40 bg-glow-teal/10 text-glow-teal'
                       : 'border-ink-700 bg-ink-950/60 text-trail-400'
                   }`}
                 >
@@ -356,7 +356,7 @@ function GuideModal({
             exit={{ opacity: 0, y: 8, scale: 0.98 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl border border-ink-700 bg-gradient-to-b from-ink-800 to-ink-900 p-6 text-left shadow-2xl"
+            className="w-full max-w-md rounded-2xl border border-glow-teal/15 bg-gradient-to-b from-ink-800/90 to-ink-900/90 p-6 text-left shadow-2xl backdrop-blur-xl"
           >
             <div className="flex items-start justify-between">
               <h2 className="font-display text-lg font-semibold text-ink-50">
@@ -606,6 +606,17 @@ function HeroDemo() {
     // `smoothFactor: 0` throughout: the geometry was already simplified once
     // in METRES when it was baked, and Leaflet's own pass is measured in
     // screen pixels, which at this zoom flattens the street shape away.
+    // TEAL atmospheric glow — widest, faintest. Decorative only.
+    L.polyline(latLngs, {
+      color: '#3fb8a8',
+      weight: 24,
+      opacity: 0,
+      smoothFactor: 0,
+      lineCap: 'round',
+      lineJoin: 'round',
+      className: 'trail-route-glow-teal',
+    }).addTo(map)
+
     glowLineRef.current = L.polyline(latLngs, {
       color: '#d97706',
       weight: 9,
@@ -785,7 +796,7 @@ function HeroDemo() {
             <motion.div
               key="day-label"
               exit={{ opacity: 0 }}
-              className="absolute left-3 top-3 rounded-md bg-ink-950/70 px-2 py-1 font-mono text-[11px] text-ink-200"
+              className="absolute left-3 top-3 rounded-md border border-glow-teal/10 bg-ink-950/60 px-2 py-1 font-mono text-[11px] text-ink-200 backdrop-blur-sm"
             >
               {DEMO_DAYS[dayStep]} · один день, як у Google
             </motion.div>
@@ -794,14 +805,14 @@ function HeroDemo() {
             <motion.div
               key="accumulated-label"
               exit={{ opacity: 0 }}
-              className="absolute left-3 top-3 rounded-md bg-ink-950/70 px-2 py-1 font-mono text-[11px] text-trail-300"
+              className="absolute left-3 top-3 rounded-md border border-glow-teal/15 bg-ink-950/60 px-2 py-1 font-mono text-[11px] text-trail-300 backdrop-blur-sm"
             >
               6 років · уся історія одразу
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div className="absolute right-3 top-3 rounded-md bg-ink-950/70 px-2 py-1 font-mono text-[10px] text-ink-500">
+        <div className="absolute right-3 top-3 rounded-md border border-glow-teal/10 bg-ink-950/60 px-2 py-1 font-mono text-[10px] text-ink-500 backdrop-blur-sm">
           Київ · приклад
         </div>
 
@@ -815,7 +826,7 @@ function HeroDemo() {
               exit={{ opacity: 0, y: 10 }}
             >
               <div className="absolute inset-x-0 -top-8 h-8 bg-gradient-to-t from-ink-900/95 to-transparent" />
-              <div className="grid grid-cols-3 gap-2 rounded-xl border border-ink-700 bg-ink-950/90 p-2.5 backdrop-blur-sm">
+              <div className="grid grid-cols-3 gap-2 rounded-xl border border-glow-teal/15 bg-ink-950/70 p-2.5 backdrop-blur-md">
                 {DEMO_INSIGHTS.map((insight, i) => (
                   <motion.div
                     key={insight.label}

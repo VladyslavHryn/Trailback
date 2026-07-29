@@ -213,7 +213,7 @@ export function ResultsStory({
     // this header and swallowed clicks in that corner.
     <header
       ref={measureHeader}
-      className="fixed inset-x-0 top-0 z-[1100] border-b border-ink-800/60 bg-ink-950/80 backdrop-blur-md"
+      className="fixed inset-x-0 top-0 z-[1100] border-b border-glow-teal/10 bg-[rgba(11,13,14,0.55)] backdrop-blur-xl"
     >
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-6 py-4 md:px-10">
         <div className="flex items-center justify-between gap-4">
@@ -236,7 +236,7 @@ export function ResultsStory({
             {geocoding.status === 'running' && (
               <span
                 title="Єдиний обмін із мережею: до OpenStreetMap ідуть округлені координати центрів твоїх топ-місць, по одному запиту за раз. Сам файл нікуди не надсилається."
-                className="flex cursor-help items-center gap-2 rounded-full border border-ink-800 bg-ink-900/80 px-3 py-1.5 font-mono text-[10px] text-ink-400"
+                className="flex cursor-help items-center gap-2 rounded-full border border-glow-teal/20 bg-ink-900/60 px-3 py-1.5 font-mono text-[10px] text-ink-400 backdrop-blur-sm"
               >
                 <Loader2 className="h-3 w-3 animate-spin text-trail-400" />
                 Розпізнаємо назви {geocoding.progress.completed}/{geocoding.progress.total}

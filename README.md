@@ -1,78 +1,79 @@
-<div align="center">
+# Trailback
 
-# 🗺️ T R A I L B A C K
-
-### **Personal Location-History Analyzer**
+**Personal Location-History Analyzer**
 
 [![Live Demo](https://img.shields.io/badge/Demo-Live_Preview-3fb8a8?style=for-the-badge&logo=google-chrome&logoColor=white)](https://trailback.hrynvladyslav07.workers.dev/)
 
-<p align="center">
-  Turns Google Takeout location history exports into a stunning interactive map and deep life insights — all processed locally in your browser.
-</p>
-
-<img src="public/banner.png" alt="Trailback Banner" width="100%" style="border-radius: 12px; box-shadow: 0 4px 30px rgba(0,0,0,0.3);" />
+Turns Google Takeout location history exports into an interactive map and life insights — all processed locally in your browser.
 
 ---
-**Trailback** is a personal location-history analyzer. It turns a Google Takeout location history export into an interactive map plus life insights — clustering, distances, and time patterns Google's own Timeline never surfaces.
 
-This is a portfolio project: the focus is a real client-side data pipeline and analytics engine, not just a map viewer. Everything is processed in-session in the browser — no uploaded file is ever sent to a server.
+## Overview
 
-### 🛠️ Tech Stack
+Trailback is a personal location-history analyzer that transforms Google Takeout location exports into an interactive map with deep analytics. Clustering, distance calculations, and time patterns that Google's Timeline doesn't surface.
+
+This is a portfolio project focused on a real client-side data pipeline and analytics engine. Everything processes in-session in the browser — your export file never touches a server.
+
+## Tech Stack
 
 - **React + TypeScript + Vite**
 - **Tailwind CSS v4**
-- **Leaflet + OpenStreetMap** tiles (heatmap via `Leaflet.heat` plugin)
-- **Analytics engine** (clustering, distance, aggregation) as an isolated, heavily-commented module — see [src/analytics/](file:///e:/Trailback/src/analytics/).
-- **Web Workers**: parsing and analytics run in background threads, ensuring that importing multi-hundred-megabyte files never blocks the user interface.
+- **Leaflet + OpenStreetMap** tiles (heatmap via `Leaflet.heat`)
+- **Analytics engine** — clustering, distance, aggregation. See `src/analytics/`
+- **Web Workers** — parsing and analytics run in background threads, keeping the UI responsive even with multi-hundred-megabyte imports
 
-### 📂 Supported Exports
+## Supported Exports
 
-The application automatically detects the structure based on file contents, not the filename:
+Auto-detected by file contents:
 
-- **`Records.json`** — classic cloud Timeline export: raw GPS coordinates as `latitudeE7`/`longitudeE7` integers.
-- **`Timeline.json`** — the on-device export that replaced the cloud version in 2024/2025 (Settings › Location › Timeline › Export). Its `semanticSegments` contain visits, activities, waypoint paths, and Google-calculated trip distances, with coordinates formatted as `"50.4501°, 30.5234°"` strings.
+### Records.json
+Classic cloud Timeline export. GPS coordinates as `latitudeE7`/`longitudeE7` integers.
 
-> [!NOTE]
-> A visit in the `Timeline.json` format represents a time *span* rather than a single moment. The app resamples coordinates across the visit's duration. Without this resampling, stay detection would see zero-length stays and fail to identify top locations. See the `expandVisit` function in [src/parsing/googleLocationFormats.ts](file:///e:/Trailback/src/parsing/googleLocationFormats.ts) for details.
+### Timeline.json
+The on-device export (Settings › Location › Timeline › Export) that replaced the cloud version in 2024/2025. Contains `semanticSegments` with visits, activities, waypoint paths, and trip distances. Coordinates formatted as `"50.4501°, 30.5234°"` strings.
 
-### 🏷️ Place Names
+**Note:** A visit represents a time span, not a moment. The app resamples coordinates across the visit duration. Without resampling, stay detection fails. See `expandVisit()` in `src/parsing/googleLocationFormats.ts`.
 
-Clustering confirms a place exists, but cannot name it. Cluster centers are resolved in two tiers:
+## Place Names
 
-1. **Foursquare Places**, via this repository's proxy endpoint `/api/place`. A dedicated venue database is essential here: OpenStreetMap typically responds to a query about a business by returning the street and house number instead of the venue name.
-2. **Nominatim (OpenStreetMap)**, called directly from the browser. Free, keyless, and serves as the fallback for locations Foursquare cannot resolve.
+Clustering confirms a place exists but cannot name it. Cluster centers resolve in two tiers:
 
-The Foursquare API key is **server-side only**. The browser sends rounded coordinates to our proxy endpoint, which attaches the API key and queries Foursquare. The key is never exposed to the client and is intentionally not prefixed with `VITE_*` (since Vite inlines those into the client bundle at build time).
+1. **Foursquare Places** via `/api/place` — a dedicated venue database. OpenStreetMap often returns street addresses instead of business names.
+2. **Nominatim (OpenStreetMap)** fallback — free, no key required, called directly from the browser.
 
-The geocoding provider can be easily swapped without modifying any client fetch code, as the browser only interacts with `/api/place`. The initial implementation used Google Places and was seamlessly replaced with Foursquare.
+The Foursquare API key stays server-side only. The browser sends rounded cluster coordinates to `/api/place`, which attaches the key and queries Foursquare. The key is never exposed to the client.
 
-Tier 1 is optional. If no key is configured, `/api/place` returns an empty result, and the app falls back entirely to Nominatim (matching its original behavior).
+Tier 1 is optional. Without a key configured, the app falls back entirely to Nominatim.
 
-> [!IMPORTANT]
-> Only rounded coordinates of your top cluster centers leave the browser (a few dozen points). The original export file is processed entirely in the browser and never uploaded. See [src/analytics/geocoding.ts](file:///e:/Trailback/src/analytics/geocoding.ts).
+**Privacy:** Only rounded coordinates of top cluster centers leave the browser (a few dozen points). The original export file processes entirely in-browser and never uploads. See `src/analytics/geocoding.ts`.
 
-### ⚙️ Setup
+## Setup
 
 1. Copy the environment template:
    ```bash
    cp .env.example .env
    ```
-2. Visit [foursquare.com/developers](https://foursquare.com/developers), create a project, and generate a **Service Key** (the free tier does not require a credit card). Paste it into `.env` as `FOURSQUARE_API_KEY`.
-3. Set the same environment variable in your production hosting platform settings.
 
-### 💻 Development
+2. Visit [foursquare.com/developers](https://foursquare.com/developers), create a project, and generate a **Service Key** (free tier, no credit card required). Add it to `.env`:
+   ```
+   FOURSQUARE_API_KEY=your_key_here
+   ```
+
+3. Set the same variable in your production hosting platform.
+
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-Running `npm run dev` serves the `/api/place` endpoint using the same handler deployed in production (see the Vite plugin in [vite.config.ts](file:///e:/Trailback/vite.config.ts)), allowing local testing of the venue-lookup flow.
+`npm run dev` serves `/api/place` using the production handler (via Vite plugin in `vite.config.ts`), so you can test the venue-lookup flow locally.
 
-### 🚀 Deploying
+## Deployment
 
-The file [api/place.ts](file:///e:/Trailback/api/place.ts) is a zero-config Vercel function. All core logic resides in [server/handler.ts](file:///e:/Trailback/server/handler.ts) as a platform-agnostic, standard `Request -> Response` Web function. Migrating to Netlify, Cloudflare Workers, or Deno Deploy is simple and only requires re-exporting this function in the respective platform's entry file.
+`api/place.ts` is a zero-config Vercel function. Core logic in `server/handler.ts` is a platform-agnostic Web function (`Request -> Response`). Migrating to Netlify, Cloudflare Workers, or Deno Deploy requires only re-exporting this function in the target platform's entry file.
 
-### 📈 Project Status
+## Status
 
-Built incrementally. Current features include: parsing, the analytics engine, interactive map layers, and the scrolling travel story, all controlled by a time-range filter with in-session caching.
+Built incrementally. Current features: parsing, analytics engine, interactive map layers, time-range filtering with in-session caching, and the scrolling travel story.

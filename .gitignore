@@ -34,3 +34,6 @@ KyivType-VariableGX/
 # Local secrets. .env.example is the committed template.
 .env
 .env.local
+
+# Wrangler
+.wrangler/

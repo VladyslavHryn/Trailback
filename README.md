@@ -1,99 +1,155 @@
-# Trailback
+<div align="center">
 
-Personal location-history analyzer. Turns a Google Takeout location history
-export into an interactive map plus life insights — clustering, distances,
-and time patterns Google's own Timeline never surfaces.
+# 🗺️ T R A I L B A C K
 
-Portfolio project: the focus is a real client-side data pipeline and
-analytics engine, not a map viewer. Everything is processed in-session in
-the browser — no uploaded file is ever sent to a server.
+### **Personal Location-History Analyzer**
 
-## Stack
+[![Live Demo](https://img.shields.io/badge/Demo-Live_Preview-3fb8a8?style=for-the-badge&logo=google-chrome&logoColor=white)](https://trailback.hrynvladyslav07.workers.dev/)
 
-- React + TypeScript + Vite
-- Tailwind CSS v4
-- Leaflet + OpenStreetMap tiles (heatmap via a Leaflet heat plugin)
-- Analytics engine (clustering, distance, aggregation) as an isolated,
-  heavily-commented module — see `src/analytics/`.
-- Parsing and analytics each run in their own Web Worker, so a
-  multi-hundred-megabyte export never blocks the UI.
+<p align="center">
+  Turns Google Takeout location history exports into a stunning interactive map and deep life insights — all processed locally in your browser.
+</p>
 
-## Supported exports
+<img src="public/banner.png" alt="Trailback Banner" width="100%" style="border-radius: 12px; box-shadow: 0 4px 30px rgba(0,0,0,0.3);" />
 
-Both real-world shapes Google has shipped, detected automatically from the
-file's contents rather than its name:
+---
 
-- **`Records.json`** — the classic cloud Timeline export: raw GPS pings as
-  `latitudeE7`/`longitudeE7` integers.
-- **`Timeline.json`** — the on-device export that replaced it in 2024/2025
-  (Settings › Location › Timeline › Export). Its `semanticSegments` carry
-  visits, activities, waypoint paths and Google's own trip distances, with
-  coordinates as `"50.4501°, 30.5234°"` strings.
+🇺🇦 [Українська версія](#-українська-версія) • 🇬🇧 [English Version](#-english-version)
 
-A visit in that second format is a time *span*, not a moment, so it is
-resampled across its duration — without that, stay detection sees zero-length
-stays and finds essentially no places at all. See `expandVisit` in
-`src/parsing/googleLocationFormats.ts` for why that is reporting the data
-rather than inventing it.
+---
 
-## Place names
+</div>
 
-Clustering proves a place exists; it can't say what it's called. Cluster
-centres are resolved in two tiers:
+## 🇺🇦 Українська версія
 
-1. **Foursquare Places**, via this repo's own `/api/place` endpoint.
-   A venue database is the reason this tier exists — OpenStreetMap usually
-   answers a bank branch with the street and house number it stands on.
-2. **Nominatim (OpenStreetMap)**, called straight from the browser. Free, no
-   key, and the fallback for anything Foursquare can't name.
+**Trailback** — це аналізатор особистої історії місцезнаходжень. Він перетворює експорт історії місцезнаходжень Google Takeout на інтерактивну карту та аналітику — кластеризація, відстані та часові патерни, які ніколи не відображаються у власному Timeline від Google.
 
-The Foursquare API key is **server-side only**. The browser calls our own
-same-origin endpoint with a rounded coordinate; the endpoint attaches the key
-and calls Foursquare. The key is never sent to the client, and is deliberately
-not named `VITE_*` — Vite inlines those into the bundle at build time.
+Це портфоліо-проект: головний фокус зроблено на реальному клієнтському конвеєрі даних (data pipeline) та аналітичному рушії, а не просто переглядачі карти. Все обробляється в межах сесії у браузері — жоден завантажений файл ніколи не надсилається на сервер.
 
-The provider is swappable without the client changing: the browser only ever
-knows `/api/place`. Google Places was the first implementation and was replaced
-by Foursquare here without touching a line of client fetch code.
+### 🛠️ Технологічний стек
 
-Tier 1 is optional. With no key set, `/api/place` answers "no result" and
-everything falls back to Nominatim, which is exactly how the app behaved before
-the endpoint existed.
+- **React + TypeScript + Vite**
+- **Tailwind CSS v4**
+- **Leaflet + OpenStreetMap** плитки (теплова карта через плагін `Leaflet.heat`)
+- **Аналітичний рушій** (кластеризація, відстані, агрегація) як ізольований модуль із детальними коментарями — див. [src/analytics/](file:///e:/Trailback/src/analytics/).
+- **Web Workers**: парсинг та аналітика запускаються у власних Web Workers, тому експорт розміром у кілька сотень мегабайт ніколи не блокує інтерфейс користувача.
 
-Only rounded coordinates of your top place centres leave the browser — dozens
-of points, never the file. See `src/analytics/geocoding.ts`.
+### 📂 Підтримувані формати експорту
 
-### Setup
+Додаток автоматично розпізнає структуру файлу за його вмістом, а не за назвою:
 
-```bash
-cp .env.example .env   # then fill in FOURSQUARE_API_KEY
-```
+- **`Records.json`** — класичний хмарний експорт Хронології (Timeline): необроблені GPS-координати у вигляді цілих чисел `latitudeE7`/`longitudeE7`.
+- **`Timeline.json`** — локальний експорт, який замінив хмарний у 2024/2025 роках (Налаштування › Місцезнаходження › Хронологія › Експорт). Сегменти `semanticSegments` містять інформацію про відвідування, активності, шляхи та відстані подорожей від Google з координатами у вигляді рядків `"50.4501°, 30.5234°"`.
 
-At [foursquare.com/developers](https://foursquare.com/developers): create a
-project and generate a **Service Key**. The free tier needs no card.
+> [!NOTE]
+> Візит у форматі `Timeline.json` — це *інтервал* часу, а не миттєва подія. Застосунок рівномірно розподіляє (ресемплить) точки протягом тривалості візиту. Без цього алгоритм визначення зупинок бачить нульову тривалість і не знаходить місць. Детальніше див. у функції `expandVisit` в [src/parsing/googleLocationFormats.ts](file:///e:/Trailback/src/parsing/googleLocationFormats.ts).
 
-Set the same variable in your host's environment for deploys.
+### 🏷️ Назви місць
 
-## Development
+Кластеризація визначає наявність локації, але не її назву. Координати центрів кластерів розпізнаються у два рівні:
+
+1. **Foursquare Places** через власний проксі-ендпоінт `/api/place` цього репозиторію. Це потрібно для отримання назв закладів (наприклад, кафе чи банку), оскільки OpenStreetMap зазвичай повертає лише назву вулиці та номер будинку.
+2. **Nominatim (OpenStreetMap)** — прямий безкоштовний виклик із браузера без API-ключа. Використовується як резервний варіант.
+
+API-ключ Foursquare зберігається **виключно на сервері**. Клієнт передає на ендпоінт округлені координати, сервер підставляє ключ і робить запит до Foursquare. Ключ ніколи не передається в браузер і навмисно не має префікса `VITE_*` (оскільки Vite вбудовує такі змінні у фронтенд-бандл при збірці).
+
+Провайдера геокодування можна легко змінити без переписування клієнтського коду — браузер знає лише адресу `/api/place`. Перша реалізація використовувала Google Places, який потім безболісно замінили на Foursquare.
+
+Перший рівень є необов'язковим. Якщо ключ не задано, `/api/place` повертає порожню відповідь, і додаток повністю переходить на Nominatim (так само, як і до створення ендпоінту).
+
+> [!IMPORTANT]
+> Тільки округлені координати центрів ваших головних локацій виходять за межі браузера (кілька десятків точок). Сам файл експорту нікуди не надсилається. Див. [src/analytics/geocoding.ts](file:///e:/Trailback/src/analytics/geocoding.ts).
+
+### ⚙️ Налаштування
+
+1. Створіть файл конфігурації:
+   ```bash
+   cp .env.example .env
+   ```
+2. Перейдіть на [foursquare.com/developers](https://foursquare.com/developers), створіть проект та згенеруйте **Service Key**. Безкоштовний ліміт не потребує введення картки. Впишіть ключ у `.env` як `FOURSQUARE_API_KEY`.
+3. Для продуктового розгортання встановіть цю ж змінну в налаштуваннях вашого хостинг-провайдера.
+
+### 💻 Локальна розробка
 
 ```bash
 npm install
 npm run dev
 ```
 
-`npm run dev` serves `/api/place` through the same handler the deployed
-function uses (see the plugin in `vite.config.ts`), so the venue-lookup path is
-exercised locally and not only in production.
+Команда `npm run dev` запускає `/api/place` через той самий обробник, який використовується при деплої (див. Vite-плагін у [vite.config.ts](file:///e:/Trailback/vite.config.ts)), тому проксі-ендпоінт повністю працездатний і в локальному оточенні.
 
-## Deploying
+### 🚀 Деплой
 
-`api/place.ts` is a zero-config Vercel function. All its logic is in
-`server/handler.ts` as a Web-standard `Request -> Response` function, so moving
-to Netlify, Cloudflare Workers or Deno Deploy means re-exporting it from that
-platform's entry file — nothing platform-specific lives outside `api/`.
+Файл [api/place.ts](file:///e:/Trailback/api/place.ts) є безконфігураційною функцією Vercel (zero-config). Вся логіка зосереджена в [server/handler.ts](file:///e:/Trailback/server/handler.ts) у вигляді стандартної Web-функції `Request -> Response`. Завдяки цьому міграція на Netlify, Cloudflare Workers чи Deno Deploy потребує лише реекспорту цієї функції у відповідному файлі-точці входу.
 
-## Status
+### 📈 Статус проекту
 
-Built incrementally, step by step. Parsing, the analytics engine, the map
-layers and the scrolling story are in place, driven by a time-range filter
-with in-session caching per period.
+Проект розробляється інкрементно. Зараз готові: парсинг, аналітичний рушій, шари карти, а також інтерактивна історія подорожей (scrolling story) з фільтрацією за часом та кешуванням запитів у межах сесії.
+
+---
+
+## 🇬🇧 English Version
+
+**Trailback** is a personal location-history analyzer. It turns a Google Takeout location history export into an interactive map plus life insights — clustering, distances, and time patterns Google's own Timeline never surfaces.
+
+This is a portfolio project: the focus is a real client-side data pipeline and analytics engine, not just a map viewer. Everything is processed in-session in the browser — no uploaded file is ever sent to a server.
+
+### 🛠️ Tech Stack
+
+- **React + TypeScript + Vite**
+- **Tailwind CSS v4**
+- **Leaflet + OpenStreetMap** tiles (heatmap via `Leaflet.heat` plugin)
+- **Analytics engine** (clustering, distance, aggregation) as an isolated, heavily-commented module — see [src/analytics/](file:///e:/Trailback/src/analytics/).
+- **Web Workers**: parsing and analytics run in background threads, ensuring that importing multi-hundred-megabyte files never blocks the user interface.
+
+### 📂 Supported Exports
+
+The application automatically detects the structure based on file contents, not the filename:
+
+- **`Records.json`** — classic cloud Timeline export: raw GPS coordinates as `latitudeE7`/`longitudeE7` integers.
+- **`Timeline.json`** — the on-device export that replaced the cloud version in 2024/2025 (Settings › Location › Timeline › Export). Its `semanticSegments` contain visits, activities, waypoint paths, and Google-calculated trip distances, with coordinates formatted as `"50.4501°, 30.5234°"` strings.
+
+> [!NOTE]
+> A visit in the `Timeline.json` format represents a time *span* rather than a single moment. The app resamples coordinates across the visit's duration. Without this resampling, stay detection would see zero-length stays and fail to identify top locations. See the `expandVisit` function in [src/parsing/googleLocationFormats.ts](file:///e:/Trailback/src/parsing/googleLocationFormats.ts) for details.
+
+### 🏷️ Place Names
+
+Clustering confirms a place exists, but cannot name it. Cluster centers are resolved in two tiers:
+
+1. **Foursquare Places**, via this repository's proxy endpoint `/api/place`. A dedicated venue database is essential here: OpenStreetMap typically responds to a query about a business by returning the street and house number instead of the venue name.
+2. **Nominatim (OpenStreetMap)**, called directly from the browser. Free, keyless, and serves as the fallback for locations Foursquare cannot resolve.
+
+The Foursquare API key is **server-side only**. The browser sends rounded coordinates to our proxy endpoint, which attaches the API key and queries Foursquare. The key is never exposed to the client and is intentionally not prefixed with `VITE_*` (since Vite inlines those into the client bundle at build time).
+
+The geocoding provider can be easily swapped without modifying any client fetch code, as the browser only interacts with `/api/place`. The initial implementation used Google Places and was seamlessly replaced with Foursquare.
+
+Tier 1 is optional. If no key is configured, `/api/place` returns an empty result, and the app falls back entirely to Nominatim (matching its original behavior).
+
+> [!IMPORTANT]
+> Only rounded coordinates of your top cluster centers leave the browser (a few dozen points). The original export file is processed entirely in the browser and never uploaded. See [src/analytics/geocoding.ts](file:///e:/Trailback/src/analytics/geocoding.ts).
+
+### ⚙️ Setup
+
+1. Copy the environment template:
+   ```bash
+   cp .env.example .env
+   ```
+2. Visit [foursquare.com/developers](https://foursquare.com/developers), create a project, and generate a **Service Key** (the free tier does not require a credit card). Paste it into `.env` as `FOURSQUARE_API_KEY`.
+3. Set the same environment variable in your production hosting platform settings.
+
+### 💻 Development
+
+```bash
+npm install
+npm run dev
+```
+
+Running `npm run dev` serves the `/api/place` endpoint using the same handler deployed in production (see the Vite plugin in [vite.config.ts](file:///e:/Trailback/vite.config.ts)), allowing local testing of the venue-lookup flow.
+
+### 🚀 Deploying
+
+The file [api/place.ts](file:///e:/Trailback/api/place.ts) is a zero-config Vercel function. All core logic resides in [server/handler.ts](file:///e:/Trailback/server/handler.ts) as a platform-agnostic, standard `Request -> Response` Web function. Migrating to Netlify, Cloudflare Workers, or Deno Deploy is simple and only requires re-exporting this function in the respective platform's entry file.
+
+### 📈 Project Status
+
+Built incrementally. Current features include: parsing, the analytics engine, interactive map layers, and the scrolling travel story, all controlled by a time-range filter with in-session caching.

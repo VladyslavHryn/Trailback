@@ -10,7 +10,7 @@
   Turns Google Takeout location history exports into a stunning interactive map and deep life insights — all processed locally in your browser.
 </p>
 
-<img src="public/banner.png" alt="Trailback Banner" width="100%" style="border-radius: 12px; box-shadow: 0 4px 30px rgba(0,0,0,0.3);" />
+<img width="1919" height="943" alt="image" src="https://github.com/user-attachments/assets/c6fcf60e-109a-4313-9da3-f02f2ff36673" />
 
 </div>
 
